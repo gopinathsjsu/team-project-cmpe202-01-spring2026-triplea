@@ -1,9 +1,37 @@
 # EventHub SJSU - Project Structure
 
-This project is organized into two main applications:
+## Project Overview
 
-- `client`: Frontend React application (UI, pages, components, styling, API calls).
-- `server`: Backend Node.js + Express API (routes, controllers, models, middleware, config).
+EventHub SJSU is a full-stack web application built with:
+
+- Frontend: React with Vite
+- Backend: Node.js with Express
+- Database: PostgreSQL
+
+The repository is split into frontend and backend applications to keep responsibilities clear and maintainable.
+
+## Folder Structure
+
+```text
+/project-root
+  /client
+  /server
+```
+
+### Frontend (`/client`)
+
+- `src/pages` -> Page-level components (for example: Login, Event List, Event Detail, Dashboard)
+- `src/components` -> Reusable UI components
+- `src/services` -> Frontend API call modules
+- `src/styles` -> CSS and shared styles
+
+### Backend (`/server`)
+
+- `routes` -> API endpoint definitions
+- `controllers` -> Request handling and business logic
+- `models` -> Database model definitions
+- `middleware` -> Cross-cutting logic (auth, validation, etc.)
+- `config` -> Database connection and application configuration files
 
 ## Main Folder Responsibilities
 
@@ -17,11 +45,42 @@ This project is organized into two main applications:
 - `server/middleware`: Shared Express middleware such as JWT auth checks.
 - `server/config`: Configuration files such as database connection setup.
 
-## Frontend/Backend Separation
+## API Naming Conventions
 
-- Keep all user interface code inside `client`.
-- Keep all API and data access code inside `server`.
-- The frontend should communicate with the backend through HTTP requests only.
+Use RESTful conventions for backend endpoint naming:
+
+- Use plural nouns for resources
+- Use `/api` as a global prefix
+- Keep URL paths resource-oriented and consistent
+
+Examples:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/events`
+- `GET /api/events/:id`
+- `POST /api/events/:id/rsvp`
+- `GET /api/admin/events/pending`
+
+## Frontend Architecture
+
+### Pages
+
+- `LoginPage`
+- `EventListPage`
+- `EventDetailPage`
+- `DashboardPage`
+
+### Components
+
+- `Navbar`
+- `EventCard`
+- `RSVPButton`
+
+### Services
+
+- `authService`
+- `eventService`
 
 ## Where Future Files Should Go
 
@@ -34,3 +93,10 @@ This project is organized into two main applications:
 - Add database models in `server/models`.
 - Add cross-cutting logic (auth, validation, error handling) in `server/middleware`.
 - Add environment and integration configuration files in `server/config`.
+
+## Development Notes
+
+- Keep naming consistent across frontend and backend.
+- Follow the folder structure strictly to avoid mixed responsibilities.
+- Separate concerns clearly (`routes` vs `controllers` vs frontend `services`).
+- Route all frontend API requests through files in `src/services`.
