@@ -1,1 +1,3 @@
-// Event detail page for viewing a single event's information.
+export default function EventDetailPage() {
+  return <div>Event Detail Page</div>;
+}

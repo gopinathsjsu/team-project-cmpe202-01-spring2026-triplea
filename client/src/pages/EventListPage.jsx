@@ -1,1 +1,3 @@
-// Event list page for browsing available events.
+export default function EventListPage() {
+  return <div>Event List Page</div>;
+}

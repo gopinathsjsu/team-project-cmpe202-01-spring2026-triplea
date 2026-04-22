@@ -1,1 +1,3 @@
-// Shared navigation bar component for moving between main app pages.
+export default function Navbar() {
+  return <div>Navbar Component</div>;
+}

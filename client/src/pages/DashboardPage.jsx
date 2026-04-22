@@ -1,1 +1,3 @@
-// Dashboard page for user-specific event and account overview.
+export default function DashboardPage() {
+  return <div>Dashboard Page</div>;
+}
