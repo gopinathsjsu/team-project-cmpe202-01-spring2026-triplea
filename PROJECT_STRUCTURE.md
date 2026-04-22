@@ -62,6 +62,13 @@ Examples:
 - `POST /api/events/:id/rsvp`
 - `GET /api/admin/events/pending`
 
+## Backend Route Mapping
+
+- `/api/auth` -> `authRoutes.js` -> `authController.js`
+- `/api/events` -> `eventRoutes.js` -> `eventController.js`
+- `/api/events/:id/rsvp` -> `eventRoutes.js` -> `eventController.js`
+- `/api/admin` -> `adminRoutes.js` -> `adminController.js`
+
 ## Frontend Architecture
 
 ### Pages
