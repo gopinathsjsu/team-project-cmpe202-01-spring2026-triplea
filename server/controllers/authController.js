@@ -1,4 +1,4 @@
-const { hashPassword } = require("../utils/passwordUtils");
+const { hashPassword, comparePassword } = require("../utils/passwordUtils");
 const { generateToken } = require("../utils/jwtUtils");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 
@@ -57,6 +57,41 @@ async function registerUser(req, res) {
   );
 }
 
+async function loginUser(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return errorResponse(res, 400, "email and password are required");
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const user = users.find((existingUser) => existingUser.email === normalizedEmail);
+
+  if (!user) {
+    return errorResponse(res, 401, "Invalid email or password");
+  }
+
+  const isPasswordValid = await comparePassword(password, user.password_hash);
+  if (!isPasswordValid) {
+    return errorResponse(res, 401, "Invalid email or password");
+  }
+
+  const token = generateToken({
+    userId: user.id,
+    role: user.role,
+  });
+
+  const userResponse = {
+    id: user.id,
+    full_name: user.full_name,
+    email: user.email,
+    role: user.role,
+  };
+
+  return successResponse(res, { user: userResponse, token }, "Login successful");
+}
+
 module.exports = {
   registerUser,
+  loginUser,
 };
