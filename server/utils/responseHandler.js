@@ -1,6 +1,6 @@
 // Send a consistent success response payload.
-function successResponse(res, data, message) {
-  return res.status(200).json({
+function successResponse(res, data, message, statusCode = 200) {
+  return res.status(statusCode).json({
     success: true,
     data,
     message,
