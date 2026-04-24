@@ -1,3 +1,3 @@
 export default function RSVPButton() {
-  return <div>RSVPButton Component</div>;
+  return <button type="button">Register / RSVP</button>;
 }
