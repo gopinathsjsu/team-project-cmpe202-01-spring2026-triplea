@@ -99,7 +99,16 @@ async function loginUser(req, res, next) {
   }
 }
 
+async function getProfile(req, res, next) {
+  try {
+    return successResponse(res, { user: req.user }, "Profile fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   registerUser,
   loginUser,
+  getProfile,
 };
