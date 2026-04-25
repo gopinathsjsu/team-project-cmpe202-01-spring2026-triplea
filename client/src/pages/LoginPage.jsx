@@ -1,4 +1,16 @@
+import { useState } from "react";
+import { login } from "../services/authService";
+
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    const response = await login(email, password);
+    console.log(response);
+  }
+
   return (
     <main style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: "100vh" }}>
       <section style={{ padding: "32px", borderRight: "1px solid #ddd" }}>
@@ -11,14 +23,25 @@ export default function LoginPage() {
       <section style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "24px" }}>
         <div style={{ width: "100%", maxWidth: "360px", border: "1px solid #ccc", padding: "20px" }}>
           <h3>Login / Register</h3>
-          <input type="email" placeholder="Email address" style={{ width: "100%", marginBottom: "8px" }} />
-          <input type="password" placeholder="Password" style={{ width: "100%", marginBottom: "8px" }} />
-          <button type="button" style={{ width: "100%", marginBottom: "8px" }}>
-            Login
-          </button>
-          <button type="button" style={{ width: "100%" }}>
-            Register
-          </button>
+          <form onSubmit={handleSubmit}>
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              style={{ width: "100%", marginBottom: "8px" }}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              style={{ width: "100%", marginBottom: "8px" }}
+            />
+            <button type="submit" style={{ width: "100%" }}>
+              Login
+            </button>
+          </form>
         </div>
       </section>
     </main>
