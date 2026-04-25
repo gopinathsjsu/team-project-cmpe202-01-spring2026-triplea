@@ -1,10 +1,11 @@
-// Express routes for authentication-related endpoints.
-
-// simple auth route test
 const express = require("express");
-const router = express.Router();
-const { testAuth } = require("../controllers/authController");
+const { authenticateToken } = require("../middleware/authMiddleware");
+const { registerUser, loginUser, getProfile } = require("../controllers/authController");
 
-router.get("/test", testAuth);
+const router = express.Router();
+
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.get("/profile", authenticateToken, getProfile);
 
 module.exports = router;

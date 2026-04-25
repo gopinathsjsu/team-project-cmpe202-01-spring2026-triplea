@@ -1,9 +1,35 @@
-// Root frontend app component placeholder for EventHub SJSU.
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import LoginPage from "./pages/LoginPage";
+import EventListPage from "./pages/EventListPage";
+import EventDetailPage from "./pages/EventDetailPage";
+import DashboardPage from "./pages/DashboardPage";
+import AdminPanelPage from "./pages/AdminPanelPage";
+import CreateEventPage from "./pages/CreateEventPage";
+
+function MainLayout() {
+  return (
+    <>
+      <Navbar />
+      <Outlet />
+    </>
+  );
+}
+
 export default function App() {
   return (
-    <main>
-      <h1>EventHub SJSU</h1>
-      <p>Vite + React scaffold is ready.</p>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<MainLayout />}>
+          <Route path="/events" element={<EventListPage />} />
+          <Route path="/events/:id" element={<EventDetailPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/admin" element={<AdminPanelPage />} />
+          <Route path="/create-event" element={<CreateEventPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
