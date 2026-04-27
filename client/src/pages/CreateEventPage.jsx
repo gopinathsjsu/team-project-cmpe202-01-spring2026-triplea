@@ -15,6 +15,11 @@ export default function CreateEventPage() {
             <h3>Step 1 of 4</h3>
             <p style={{ marginTop: 0 }}>Let&apos;s start with the basics.</p>
             <input type="text" placeholder="Event Title" style={{ width: "100%", marginBottom: "8px", padding: "8px" }} />
+            <textarea
+              name="event_description"
+              placeholder="Event Description"
+              style={{ width: "100%", marginBottom: "8px", padding: "8px", minHeight: "80px", resize: "vertical" }}
+            />
             <select style={{ width: "100%", marginBottom: "8px", padding: "8px" }}>
               <option>Select a category</option>
             </select>

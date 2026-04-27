@@ -46,12 +46,12 @@ export default function EventListPage() {
           </div>
           <p style={{ marginTop: 0 }}>Browse upcoming events from organizers.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px" }}>
-            <EventCard />
-            <EventCard />
-            <EventCard />
-            <EventCard />
-            <EventCard />
-            <EventCard />
+            <EventCard title="Tech Conference 2025" event_description="A day of talks and networking for builders." />
+            <EventCard title="Summer Music Fest" event_description="Live performances and community activities." />
+            <EventCard title="Startup Meetup" event_description="Pitch, connect, and meet local founders." />
+            <EventCard title="Art in the Park" event_description="Outdoor exhibits from student artists." />
+            <EventCard title="Yoga in the Morning" event_description="Beginner-friendly group yoga session." />
+            <EventCard title="AI Workshop" event_description="Hands-on intro to modern AI tools." />
           </div>
         </section>
       </div>
