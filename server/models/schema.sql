@@ -28,7 +28,7 @@ CREATE TABLE events (
     location_state VARCHAR(100),
     location_zip_code VARCHAR(20),
     latitude DECIMAL(9,6),
-    longitutde DECIMAL(9,6),
+    longitude DECIMAL(9,6),
     capacity INTEGER NOT NULL CHECK (capacity > 0),
     approval_status VARCHAR(20) NOT NULL DEFAULT 'pending'
         CHECK (approval_status IN ('pending', 'approved', 'rejected')),
