@@ -1,4 +1,4 @@
-// Controller for handling event request logic.
+const pool = require("../config/db");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 
 const isValidEventDate = (eventDate) => {
@@ -27,9 +27,6 @@ const isValidCapacity = (capacity) => {
   const numericCapacity = Number(capacity);
   return Number.isFinite(numericCapacity) && numericCapacity > 0;
 };
-
-const pool = require("../config/db");
-const { successResponse, errorResponse } = require("../utils/responseHandler");
 
 function canManageEvents(user) {
   return user && (user.role === "organizer" || user.role === "admin");
@@ -156,8 +153,16 @@ async function createEvent(req, res, next) {
       );
     }
 
-    if (Number(capacity) <= 0) {
-      return errorResponse(res, 400, "capacity must be greater than 0");
+    if (!isValidEventDate(event_date)) {
+      return errorResponse(res, 400, "Invalid event_date format");
+    }
+
+    if (!isValidStartTime(start_time)) {
+      return errorResponse(res, 400, "Invalid start_time format");
+    }
+
+    if (!isValidCapacity(capacity)) {
+      return errorResponse(res, 400, "capacity must be a number greater than 0");
     }
 
     if (Boolean(is_free) && Number(ticket_price) !== 0) {
@@ -229,6 +234,10 @@ async function updateEvent(req, res, next) {
       return errorResponse(res, 403, "Only organizers or admins can update events");
     }
 
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return errorResponse(res, 400, "At least one field is required for update");
+    }
+
     const { id } = req.params;
     const {
       title,
@@ -251,36 +260,31 @@ async function updateEvent(req, res, next) {
       calendar_link,
     } = req.body;
 
-    const existingEvent = await pool.query(
-      `SELECT * FROM events WHERE id = $1`,
-      [id]
-    );
+    if (event_date !== undefined && !isValidEventDate(event_date)) {
+      return errorResponse(res, 400, "Invalid event_date format");
+    }
 
+    if (start_time !== undefined && !isValidStartTime(start_time)) {
+      return errorResponse(res, 400, "Invalid start_time format");
+    }
+
+    if (capacity !== undefined && !isValidCapacity(capacity)) {
+      return errorResponse(res, 400, "capacity must be a number greater than 0");
+    }
+
+    const existingEvent = await pool.query(`SELECT * FROM events WHERE id = $1`, [id]);
     if (existingEvent.rows.length === 0) {
       return errorResponse(res, 404, "Event not found");
     }
 
     const event = existingEvent.rows[0];
-
-    if (
-      req.user.role !== "admin" &&
-      Number(event.organizer_id) !== Number(req.user.userId)
-    ) {
+    if (req.user.role !== "admin" && Number(event.organizer_id) !== Number(req.user.userId)) {
       return errorResponse(res, 403, "You can only update your own events");
     }
 
-    const updatedIsFree =
-      typeof is_free === "boolean" ? is_free : event.is_free;
-
-    const updatedTicketPrice =
-      ticket_price !== undefined ? Number(ticket_price) : Number(event.ticket_price);
-
-    const updatedCapacity =
-      capacity !== undefined ? Number(capacity) : Number(event.capacity);
-
-    if (updatedCapacity <= 0) {
-      return errorResponse(res, 400, "capacity must be greater than 0");
-    }
+    const updatedIsFree = typeof is_free === "boolean" ? is_free : event.is_free;
+    const updatedTicketPrice = ticket_price !== undefined ? Number(ticket_price) : Number(event.ticket_price);
+    const updatedCapacity = capacity !== undefined ? Number(capacity) : Number(event.capacity);
 
     if (updatedIsFree && updatedTicketPrice !== 0) {
       return errorResponse(res, 400, "Free events must have ticket_price = 0");
@@ -348,86 +352,18 @@ async function deleteEvent(req, res, next) {
     }
 
     const { id } = req.params;
-
-    const existingEvent = await pool.query(
-      `SELECT * FROM events WHERE id = $1`,
-      [id]
-    );
-
+    const existingEvent = await pool.query(`SELECT * FROM events WHERE id = $1`, [id]);
     if (existingEvent.rows.length === 0) {
       return errorResponse(res, 404, "Event not found");
     }
 
     const event = existingEvent.rows[0];
-
-    if (
-      req.user.role !== "admin" &&
-      Number(event.organizer_id) !== Number(req.user.userId)
-    ) {
+    if (req.user.role !== "admin" && Number(event.organizer_id) !== Number(req.user.userId)) {
       return errorResponse(res, 403, "You can only delete your own events");
     }
 
     await pool.query(`DELETE FROM events WHERE id = $1`, [id]);
-
     return successResponse(res, null, "Event deleted successfully");
-// simple event controller endpoint test
-const getAllEvents = async (req, res, next) => {
-  try {
-    return successResponse(res, [], "Events endpoint is working");
-  } catch (error) {
-    return next(error);
-  }
-};
-
-const createEvent = async (req, res, next) => {
-  try {
-    const { title, description, event_date, start_time, capacity } = req.body;
-
-    if (!title || !description || !event_date || !start_time || !capacity) {
-      return errorResponse(
-        res,
-        400,
-        "title, description, event_date, start_time, and capacity are required"
-      );
-    }
-
-    if (!isValidEventDate(event_date)) {
-      return errorResponse(res, 400, "Invalid event_date format");
-    }
-
-    if (!isValidStartTime(start_time)) {
-      return errorResponse(res, 400, "Invalid start_time format");
-    }
-
-    if (!isValidCapacity(capacity)) {
-      return errorResponse(res, 400, "capacity must be a number greater than 0");
-    }
-
-    return successResponse(res, req.body, "Event created successfully", 201);
-  } catch (error) {
-    return next(error);
-  }
-};
-
-const updateEvent = async (req, res, next) => {
-  try {
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return errorResponse(res, 400, "At least one field is required for update");
-    }
-
-    if (Object.prototype.hasOwnProperty.call(req.body, "event_date") && !isValidEventDate(req.body.event_date)) {
-      return errorResponse(res, 400, "Invalid event_date format");
-    }
-
-    if (Object.prototype.hasOwnProperty.call(req.body, "start_time") && !isValidStartTime(req.body.start_time)) {
-      return errorResponse(res, 400, "Invalid start_time format");
-    }
-
-    if (Object.prototype.hasOwnProperty.call(req.body, "capacity") && !isValidCapacity(req.body.capacity)) {
-      return errorResponse(res, 400, "capacity must be a number greater than 0");
-    }
-
-    return successResponse(res, req.body, "Event updated successfully");
   } catch (error) {
     return next(error);
   }
