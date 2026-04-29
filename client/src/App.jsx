@@ -6,6 +6,7 @@ import EventDetailPage from "./pages/EventDetailPage";
 import DashboardPage from "./pages/DashboardPage";
 import AdminPanelPage from "./pages/AdminPanelPage";
 import CreateEventPage from "./pages/CreateEventPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function MainLayout() {
   return (
@@ -25,9 +26,11 @@ export default function App() {
         <Route element={<MainLayout />}>
           <Route path="/events" element={<EventListPage />} />
           <Route path="/events/:id" element={<EventDetailPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/admin" element={<AdminPanelPage />} />
-          <Route path="/create-event" element={<CreateEventPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/admin" element={<AdminPanelPage />} />
+            <Route path="/create-event" element={<CreateEventPage />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

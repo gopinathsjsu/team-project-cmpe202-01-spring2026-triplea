@@ -22,6 +22,7 @@ export default function LoginPage() {
         if (fullName) {
           sessionStorage.setItem("eventhubUserName", fullName);
         }
+        // TODO: Save auth token to localStorage("token") after backend token wiring.
         navigate("/dashboard");
       } else {
         const errorMessage = response?.message || "Login failed";

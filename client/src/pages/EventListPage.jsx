@@ -1,6 +1,29 @@
+import { useEffect, useState } from "react";
 import EventCard from "../components/EventCard";
+import { getEvents } from "../services/eventService";
 
 export default function EventListPage() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const response = await getEvents();
+        setEvents(Array.isArray(response?.data) ? response.data : []);
+      } catch (fetchError) {
+        setError(fetchError?.message || "Failed to load events");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, []);
+
   return (
     <main style={{ padding: "16px", display: "grid", gap: "12px" }}>
       <header style={{ border: "1px solid #ddd", padding: "10px", display: "flex", gap: "12px", alignItems: "center" }}>
@@ -45,14 +68,24 @@ export default function EventListPage() {
             <small>Sort by: Latest</small>
           </div>
           <p style={{ marginTop: 0 }}>Browse upcoming events from organizers.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px" }}>
-            <EventCard title="Tech Conference 2025" event_description="A day of talks and networking for builders." />
-            <EventCard title="Summer Music Fest" event_description="Live performances and community activities." />
-            <EventCard title="Startup Meetup" event_description="Pitch, connect, and meet local founders." />
-            <EventCard title="Art in the Park" event_description="Outdoor exhibits from student artists." />
-            <EventCard title="Yoga in the Morning" event_description="Beginner-friendly group yoga session." />
-            <EventCard title="AI Workshop" event_description="Hands-on intro to modern AI tools." />
-          </div>
+          {loading ? <p>Loading events...</p> : null}
+          {error ? <p style={{ color: "#b00020" }}>{error}</p> : null}
+          {!loading && !error && events.length === 0 ? <p>No events found.</p> : null}
+          {!loading && !error && events.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px" }}>
+              {events.map((event) => (
+                <EventCard
+                  key={event.id}
+                  title={event.title}
+                  category={event.category}
+                  event_date={event.event_date}
+                  start_time={event.start_time}
+                  location_name={event.location_name}
+                  capacity={event.capacity}
+                />
+              ))}
+            </div>
+          ) : null}
         </section>
       </div>
     </main>

@@ -1,9 +1,8 @@
 const { hashPassword, comparePassword } = require("../utils/passwordUtils");
 const { generateToken } = require("../utils/jwtUtils");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
+const pool = require("../config/db");
 
-const users = [];
-let nextUserId = 1;
 const allowedRoles = ["attendee", "organizer", "admin"];
 
 async function registerUser(req, res, next) {
@@ -21,22 +20,26 @@ async function registerUser(req, res, next) {
       return errorResponse(res, 400, "Invalid role value");
     }
 
-    const existingUser = users.find((user) => user.email === normalizedEmail);
-    if (existingUser) {
+    const existingUserResult = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [normalizedEmail]
+    );
+
+    if (existingUserResult.rows.length > 0) {
       return errorResponse(res, 409, "Email is already registered");
     }
 
     const password_hash = await hashPassword(password);
+    const createdUserResult = await pool.query(
+      `
+      INSERT INTO users (full_name, email, password_hash, role)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, full_name, email, role
+      `,
+      [String(full_name).trim(), normalizedEmail, password_hash, userRole]
+    );
 
-    const newUser = {
-      id: nextUserId++,
-      full_name: String(full_name).trim(),
-      email: normalizedEmail,
-      password_hash,
-      role: userRole,
-    };
-
-    users.push(newUser);
+    const newUser = createdUserResult.rows[0];
 
     const token = generateToken({
       userId: newUser.id,
@@ -70,11 +73,16 @@ async function loginUser(req, res, next) {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const user = users.find((existingUser) => existingUser.email === normalizedEmail);
+    const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [
+      normalizedEmail,
+    ]);
 
-    if (!user) {
+    if (userResult.rows.length === 0) {
       return errorResponse(res, 401, "Invalid email or password");
     }
+
+    const user = userResult.rows[0];
+
 
     const isPasswordValid = await comparePassword(password, user.password_hash);
     if (!isPasswordValid) {
