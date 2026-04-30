@@ -369,10 +369,118 @@ async function deleteEvent(req, res, next) {
   }
 }
 
+async function registerForEvent(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const userId = req.user.userId;
+
+    const eventResult = await pool.query(`SELECT id, capacity FROM events WHERE id = $1`, [eventId]);
+    if (eventResult.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const existingRegistration = await pool.query(
+      `SELECT id FROM registrations WHERE user_id = $1 AND event_id = $2`,
+      [userId, eventId]
+    );
+
+    if (existingRegistration.rows.length > 0) {
+      return errorResponse(res, 409, "User is already registered for this event");
+    }
+
+    const activeRegistrationCountResult = await pool.query(
+      `
+      SELECT COUNT(*) AS active_count
+      FROM registrations
+      WHERE event_id = $1 AND registration_status = 'registered'
+      `,
+      [eventId]
+    );
+
+    const activeRegistrationCount = Number(activeRegistrationCountResult.rows[0].active_count);
+    const eventCapacity = Number(eventResult.rows[0].capacity);
+
+    if (activeRegistrationCount >= eventCapacity) {
+      return errorResponse(res, 400, "Event capacity has been reached");
+    }
+
+    const registrationResult = await pool.query(
+      `
+      INSERT INTO registrations (user_id, event_id)
+      VALUES ($1, $2)
+      RETURNING *
+      `,
+      [userId, eventId]
+    );
+
+    return successResponse(
+      res,
+      registrationResult.rows[0],
+      "RSVP registration successful",
+      201
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function approveEvent(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const existing = await pool.query(`SELECT id FROM events WHERE id = $1`, [id]);
+    if (existing.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE events
+      SET approval_status = 'approved', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id]
+    );
+
+    return successResponse(res, result.rows[0], "Event approved successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function rejectEvent(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const existing = await pool.query(`SELECT id FROM events WHERE id = $1`, [id]);
+    if (existing.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE events
+      SET approval_status = 'rejected', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id]
+    );
+
+    return successResponse(res, result.rows[0], "Event rejected successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getAllEvents,
   getEventById,
   createEvent,
   updateEvent,
   deleteEvent,
+  registerForEvent,
+  approveEvent,
+  rejectEvent,
 };
