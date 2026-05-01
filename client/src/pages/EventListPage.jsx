@@ -76,6 +76,7 @@ export default function EventListPage() {
               {events.map((event) => (
                 <EventCard
                   key={event.id}
+                  id={event.id}
                   title={event.title}
                   category={event.category}
                   event_date={event.event_date}

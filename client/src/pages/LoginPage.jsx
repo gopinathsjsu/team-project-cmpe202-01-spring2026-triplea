@@ -18,11 +18,17 @@ export default function LoginPage() {
       console.log(response);
 
       if (response?.success) {
+        const token = response?.data?.token;
+        if (!token) {
+          setLoginError("Login succeeded but no token was returned. Please try again.");
+          return;
+        }
+        localStorage.setItem("token", token);
+
         const fullName = response?.data?.user?.full_name;
         if (fullName) {
           sessionStorage.setItem("eventhubUserName", fullName);
         }
-        // TODO: Save auth token to localStorage("token") after backend token wiring.
         navigate("/dashboard");
       } else {
         const errorMessage = response?.message || "Login failed";

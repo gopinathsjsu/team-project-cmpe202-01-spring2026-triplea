@@ -4,6 +4,7 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
     sessionStorage.removeItem("eventhubUserName");
     navigate("/login");
   };
