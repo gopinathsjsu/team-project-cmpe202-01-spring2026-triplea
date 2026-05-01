@@ -3,7 +3,8 @@ const { generateToken } = require("../utils/jwtUtils");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const pool = require("../config/db");
 
-const allowedRoles = ["attendee", "organizer", "admin"];
+/** Roles users may choose when registering (admin is not self-service). */
+const selfRegisterRoles = ["attendee", "organizer"];
 
 async function registerUser(req, res, next) {
   try {
@@ -16,7 +17,7 @@ async function registerUser(req, res, next) {
     const normalizedEmail = String(email).trim().toLowerCase();
     const userRole = role || "attendee";
 
-    if (!allowedRoles.includes(userRole)) {
+    if (!selfRegisterRoles.includes(userRole)) {
       return errorResponse(res, 400, "Invalid role value");
     }
 

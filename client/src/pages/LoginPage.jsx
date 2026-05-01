@@ -1,43 +1,67 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { login } from "../services/authService";
+import { login, register } from "../services/authService";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("login");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [registerRole, setRegisterRole] = useState("attendee");
   const [loginError, setLoginError] = useState("");
+
+  const persistSessionAndGo = (response) => {
+    const token = response?.data?.token;
+    if (!token) {
+      setLoginError("No token was returned. Please try again.");
+      return;
+    }
+    localStorage.setItem("token", token);
+
+    const name = response?.data?.user?.full_name;
+    if (name) {
+      sessionStorage.setItem("eventhubUserName", name);
+    }
+    navigate("/dashboard");
+  };
 
   const onSubmit = async (event) => {
     event.preventDefault();
     setLoginError("");
 
     try {
-      const response = await login(email, password);
-      console.log(response);
+      if (activeTab === "login") {
+        const response = await login(email, password);
+
+        if (response?.success) {
+          persistSessionAndGo(response);
+        } else {
+          setLoginError(response?.message || "Login failed");
+        }
+        return;
+      }
+
+      const trimmedName = fullName.trim();
+      if (!trimmedName) {
+        setLoginError("Full name is required.");
+        return;
+      }
+
+      const response = await register({
+        full_name: trimmedName,
+        email,
+        password,
+        role: registerRole,
+      });
 
       if (response?.success) {
-        const token = response?.data?.token;
-        if (!token) {
-          setLoginError("Login succeeded but no token was returned. Please try again.");
-          return;
-        }
-        localStorage.setItem("token", token);
-
-        const fullName = response?.data?.user?.full_name;
-        if (fullName) {
-          sessionStorage.setItem("eventhubUserName", fullName);
-        }
-        navigate("/dashboard");
+        persistSessionAndGo(response);
       } else {
-        const errorMessage = response?.message || "Login failed";
-        console.error(errorMessage);
-        setLoginError(errorMessage);
+        setLoginError(response?.message || "Registration failed");
       }
     } catch (error) {
-      console.error(error);
-      setLoginError(error?.message || "Login failed");
+      setLoginError(error?.message || "Something went wrong.");
     }
   };
 
@@ -110,7 +134,10 @@ export default function LoginPage() {
           <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
             <button
               type="button"
-              onClick={() => setActiveTab("login")}
+              onClick={() => {
+                setActiveTab("login");
+                setLoginError("");
+              }}
               style={{
                 flex: 1,
                 padding: "8px",
@@ -123,7 +150,10 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("register")}
+              onClick={() => {
+                setActiveTab("register");
+                setLoginError("");
+              }}
               style={{
                 flex: 1,
                 padding: "8px",
@@ -142,7 +172,38 @@ export default function LoginPage() {
                 <label htmlFor="name" style={{ display: "block", marginBottom: "6px", fontSize: "14px" }}>
                   Full name
                 </label>
-                <input id="name" type="text" placeholder="Your name" style={inputStyle} />
+                <input
+                  id="name"
+                  type="text"
+                  placeholder="Your name"
+                  style={inputStyle}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  autoComplete="name"
+                />
+                <fieldset style={{ margin: "0 0 10px 0", padding: "10px", border: "1px solid #ccc" }}>
+                  <legend style={{ fontSize: "14px" }}>Account type</legend>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", fontSize: "14px", cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="registerRole"
+                      value="attendee"
+                      checked={registerRole === "attendee"}
+                      onChange={() => setRegisterRole("attendee")}
+                    />
+                    Attendee — browse and RSVP for events
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="registerRole"
+                      value="organizer"
+                      checked={registerRole === "organizer"}
+                      onChange={() => setRegisterRole("organizer")}
+                    />
+                    Organizer — create and manage events
+                  </label>
+                </fieldset>
               </>
             ) : null}
             <label htmlFor="email" style={{ display: "block", marginBottom: "6px", fontSize: "14px" }}>

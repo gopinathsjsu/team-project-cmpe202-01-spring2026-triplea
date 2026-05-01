@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
 import { getRsvpStatus, registerForEvent, unregisterFromEvent } from "../services/eventService";
+import { decodeJwtPayload } from "../utils/decodeJwtPayload";
+
+function initialCheckingRegistration() {
+  const t = localStorage.getItem("token");
+  if (!t) {
+    return false;
+  }
+  const role = decodeJwtPayload(t)?.role;
+  if (role === "organizer" || role === "admin") {
+    return false;
+  }
+  return true;
+}
 
 export default function RSVPButton({
   eventId,
@@ -7,9 +20,14 @@ export default function RSVPButton({
   registeredCount,
   onSuccess,
 }) {
-  const [checkingRegistration, setCheckingRegistration] = useState(() => !!localStorage.getItem("token"));
+  const [checkingRegistration, setCheckingRegistration] = useState(initialCheckingRegistration);
   const [isRegistered, setIsRegistered] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const tokenRole = token ? decodeJwtPayload(token)?.role : null;
+  const isNonAttendee = tokenRole === "organizer" || tokenRole === "admin";
+  const tokenPresent = !!token;
 
   const capNum = Number(capacityLimit);
   const countNum = Number(registeredCount);
@@ -21,8 +39,10 @@ export default function RSVPButton({
     let cancelled = false;
 
     async function loadStatus() {
-      const token = localStorage.getItem("token");
-      if (!token || eventId == null) {
+      const t = localStorage.getItem("token");
+      const role = t ? decodeJwtPayload(t)?.role : null;
+
+      if (!t || eventId == null || role === "organizer" || role === "admin") {
         setCheckingRegistration(false);
         setIsRegistered(false);
         return;
@@ -30,7 +50,7 @@ export default function RSVPButton({
 
       setCheckingRegistration(true);
       try {
-        const res = await getRsvpStatus(eventId, token);
+        const res = await getRsvpStatus(eventId, t);
         if (!cancelled) {
           setIsRegistered(Boolean(res?.data?.registered));
         }
@@ -56,14 +76,14 @@ export default function RSVPButton({
     if (isFull && !isRegistered) {
       return;
     }
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const t = localStorage.getItem("token");
+    if (!t || isNonAttendee) {
       return;
     }
 
     setActionLoading(true);
     try {
-      await registerForEvent(eventId, token);
+      await registerForEvent(eventId, t);
       window.alert("RSVP registration successful");
       setIsRegistered(true);
       await onSuccess?.();
@@ -75,15 +95,14 @@ export default function RSVPButton({
   };
 
   const handleUnregister = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      window.alert("Please log in first");
+    const t = localStorage.getItem("token");
+    if (!t || isNonAttendee) {
       return;
     }
 
     setActionLoading(true);
     try {
-      await unregisterFromEvent(eventId, token);
+      await unregisterFromEvent(eventId, t);
       window.alert("You have been unregistered from this event");
       setIsRegistered(false);
       await onSuccess?.();
@@ -94,17 +113,17 @@ export default function RSVPButton({
     }
   };
 
-  const tokenPresent = !!localStorage.getItem("token");
   const registerBlocked = isFull && !isRegistered;
-  const unregisterMode = tokenPresent && isRegistered && !checkingRegistration;
+  const unregisterMode =
+    tokenPresent && isRegistered && !checkingRegistration && !isNonAttendee;
 
   const disableRegisterPath =
-    checkingRegistration || actionLoading || registerBlocked || !tokenPresent;
-  const disableUnregisterPath = checkingRegistration || actionLoading;
+    checkingRegistration || actionLoading || registerBlocked || !tokenPresent || isNonAttendee;
+  const disableUnregisterPath = checkingRegistration || actionLoading || isNonAttendee;
   const disableButton = unregisterMode ? disableUnregisterPath : disableRegisterPath;
 
   let buttonLabel = "Register / RSVP";
-  if (checkingRegistration && tokenPresent) {
+  if (checkingRegistration && tokenPresent && !isNonAttendee) {
     buttonLabel = "Checking…";
   } else if (actionLoading) {
     buttonLabel = isRegistered ? "Unregistering…" : "Registering…";
@@ -119,10 +138,15 @@ export default function RSVPButton({
       {registerBlocked ? (
         <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#b00020" }}>Sorry, this event is full.</p>
       ) : null}
+      {!registerBlocked && tokenPresent && isNonAttendee ? (
+        <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#444" }}>
+          Please log in using attendee account to register for this event
+        </p>
+      ) : null}
       {!tokenPresent && !registerBlocked ? (
         <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#444" }}>Please log in to register</p>
       ) : null}
-      {tokenPresent && !checkingRegistration && isRegistered ? (
+      {tokenPresent && !checkingRegistration && isRegistered && !isNonAttendee ? (
         <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#444" }}>
           You have already registered for this event.
         </p>
