@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import EventCard from "../components/EventCard";
+import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { getEvents } from "../services/eventService";
 
 export default function EventListPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const isOrganizer = decodeJwtPayload(localStorage.getItem("token"))?.role === "organizer";
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -32,7 +35,11 @@ export default function EventListPage() {
           placeholder="Search events, categories, or locations..."
           style={{ flex: 1, padding: "8px", border: "1px solid #ccc" }}
         />
-        <button type="button">Create Event</button>
+        {isOrganizer ? (
+          <Link to="/create-event" style={{ padding: "8px 14px", border: "1px solid #bbb", textDecoration: "none", color: "inherit", fontSize: "14px" }}>
+            Create Event
+          </Link>
+        ) : null}
       </header>
 
       <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "16px", alignItems: "start" }}>

@@ -7,6 +7,8 @@ const { authenticateToken } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/authorizeRole");
 const {
   getAllEvents,
+  getMyEvents,
+  getMyRegisteredEvents,
   getEventById,
   createEvent,
   updateEvent,
@@ -19,6 +21,8 @@ const {
 } = require("../controllers/eventController");
 
 router.get("/", getAllEvents);
+router.get("/my-events", authenticateToken, authorizeRoles("organizer"), getMyEvents);
+router.get("/my-registrations", authenticateToken, authorizeRoles("attendee"), getMyRegisteredEvents);
 router.get("/:id/rsvp-status", authenticateToken, authorizeRoles("attendee"), getMyRsvpStatus);
 router.get("/:id", getEventById);
 router.post("/", authenticateToken, authorizeRoles("organizer", "admin"), createEvent);

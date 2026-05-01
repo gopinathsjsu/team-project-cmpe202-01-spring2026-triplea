@@ -72,6 +72,91 @@ async function getAllEvents(req, res, next) {
   }
 }
 
+async function getMyEvents(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        organizer_id,
+        title,
+        event_description,
+        category,
+        event_date,
+        start_time,
+        end_time,
+        location_name,
+        location_address,
+        location_city,
+        location_state,
+        location_zip_code,
+        latitude,
+        longitude,
+        capacity,
+        approval_status,
+        is_free,
+        ticket_price,
+        schedule_notes,
+        calendar_link,
+        created_at,
+        updated_at
+      FROM events
+      WHERE organizer_id = $1
+      ORDER BY event_date ASC, start_time ASC
+      `,
+      [userId]
+    );
+
+    return successResponse(res, result.rows, "My events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getMyRegisteredEvents(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.event_description,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.end_time,
+        e.location_name,
+        e.location_address,
+        e.location_city,
+        e.location_state,
+        e.location_zip_code,
+        e.latitude,
+        e.longitude,
+        e.capacity,
+        e.approval_status,
+        e.is_free,
+        e.ticket_price,
+        e.schedule_notes,
+        e.calendar_link,
+        e.created_at,
+        e.updated_at
+      FROM events e
+      INNER JOIN registrations r ON r.event_id = e.id
+      WHERE r.user_id = $1 AND r.registration_status = 'registered'
+      ORDER BY e.event_date ASC, e.start_time ASC
+      `,
+      [userId]
+    );
+
+    return successResponse(res, result.rows, "My registered events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getEventById(req, res, next) {
   try {
     const { id } = req.params;
@@ -556,6 +641,8 @@ async function rejectEvent(req, res, next) {
 
 module.exports = {
   getAllEvents,
+  getMyEvents,
+  getMyRegisteredEvents,
   getEventById,
   createEvent,
   updateEvent,

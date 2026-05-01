@@ -8,6 +8,51 @@ export async function getEvents() {
   return response.json();
 }
 
+export async function createEvent(body, token) {
+  const response = await fetch("http://localhost:5000/api/events", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to create event");
+  }
+  return data;
+}
+
+export async function getMyEvents(token) {
+  const response = await fetch("http://localhost:5000/api/events/my-events", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch my events");
+  }
+  return data;
+}
+
+export async function getMyRegisteredEvents(token) {
+  const response = await fetch("http://localhost:5000/api/events/my-registrations", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch your registrations");
+  }
+  return data;
+}
+
 export async function getEventById(id) {
   const response = await fetch(`http://localhost:5000/api/events/${id}`);
 
@@ -98,4 +143,19 @@ export async function registerForEvent(id, token) {
   }
 
   return response.json();
+}
+
+export async function deleteEventById(id, token) {
+  const response = await fetch(`http://localhost:5000/api/events/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to delete event");
+  }
+  return data;
 }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
-import { getEventById } from "../services/eventService";
+import { deleteEventById, getEventById } from "../services/eventService";
+import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
 
 function isEventNotFoundMessage(message) {
@@ -16,6 +17,7 @@ export default function EventDetailPage() {
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const goToEventsWithNotFoundNotice = useCallback(() => {
@@ -137,6 +139,32 @@ export default function EventDetailPage() {
     [event.location_city, event.location_state, event.location_zip_code].filter(Boolean).join(", ") || null,
   ].filter(Boolean);
 
+  const decoded = decodeJwtPayload(localStorage.getItem("token"));
+  const isOrganizerOwner =
+    decoded?.role === "organizer" &&
+    Number(decoded?.userId) === Number(event.organizer_id);
+
+  const handleDeleteEvent = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || !event?.id) {
+      return;
+    }
+    const ok = window.confirm("Delete this event?");
+    if (!ok) {
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await deleteEventById(event.id, token);
+      window.alert("Event deleted successfully");
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      window.alert(err?.message || "Failed to delete event");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <main style={{ padding: "16px" }}>
       <p style={{ marginBottom: "12px" }}>
@@ -207,6 +235,16 @@ export default function EventDetailPage() {
             registeredCount={event.registered_count}
             onSuccess={reloadEvent}
           />
+          {isOrganizerOwner ? (
+            <button
+              type="button"
+              onClick={handleDeleteEvent}
+              disabled={deleteLoading}
+              style={{ marginTop: "8px", width: "100%", padding: "8px" }}
+            >
+              {deleteLoading ? "Deleting..." : "Delete Event"}
+            </button>
+          ) : null}
           <button type="button" style={{ marginTop: "8px", width: "100%", padding: "8px" }}>
             Add to Calendar
           </button>

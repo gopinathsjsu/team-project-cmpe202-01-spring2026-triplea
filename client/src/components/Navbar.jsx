@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [hasToken, setHasToken] = useState(() => !!localStorage.getItem("token"));
 
+  const [role, setRole] = useState(() => decodeJwtPayload(localStorage.getItem("token"))?.role ?? null);
+
   useEffect(() => {
-    setHasToken(!!localStorage.getItem("token"));
+    const t = localStorage.getItem("token");
+    setHasToken(!!t);
+    setRole(decodeJwtPayload(t)?.role ?? null);
   }, [location.pathname]);
 
   const handleLogout = () => {
@@ -24,8 +29,7 @@ export default function Navbar() {
       {hasToken ? (
         <>
           <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/create-event">Create Event</NavLink>
-          <NavLink to="/admin">Admin</NavLink>
+          {role === "admin" ? <NavLink to="/admin">Admin</NavLink> : null}
           <button
             type="button"
             onClick={handleLogout}

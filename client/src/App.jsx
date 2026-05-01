@@ -6,6 +6,8 @@ import EventDetailPage from "./pages/EventDetailPage";
 import DashboardPage from "./pages/DashboardPage";
 import AdminPanelPage from "./pages/AdminPanelPage";
 import CreateEventPage from "./pages/CreateEventPage";
+import AdminRoute from "./components/AdminRoute";
+import OrganizerRoute from "./components/OrganizerRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function MainLayout() {
@@ -28,8 +30,12 @@ export default function App() {
           <Route path="/events/:id" element={<EventDetailPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/admin" element={<AdminPanelPage />} />
-            <Route path="/create-event" element={<CreateEventPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminPanelPage />} />
+            </Route>
+            <Route element={<OrganizerRoute />}>
+              <Route path="/create-event" element={<CreateEventPage />} />
+            </Route>
           </Route>
         </Route>
       </Routes>
