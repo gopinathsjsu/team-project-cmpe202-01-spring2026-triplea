@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
-import { deleteEventById, getEventById } from "../services/eventService";
+import { approveEventById, deleteEventById, getEventById } from "../services/eventService";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
 
@@ -140,9 +140,27 @@ export default function EventDetailPage() {
   ].filter(Boolean);
 
   const decoded = decodeJwtPayload(localStorage.getItem("token"));
+  const isAdmin = decoded?.role === "admin";
   const isOrganizerOwner =
     decoded?.role === "organizer" &&
     Number(decoded?.userId) === Number(event.organizer_id);
+
+  const handleApproveEvent = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || !event?.id) {
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await approveEventById(event.id, token);
+      window.alert("Event approved successfully");
+      await reloadEvent();
+    } catch (err) {
+      window.alert(err?.message || "Failed to approve event");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const handleDeleteEvent = async () => {
     const token = localStorage.getItem("token");
@@ -229,13 +247,24 @@ export default function EventDetailPage() {
             <strong>Status:</strong> {event.approval_status ?? "—"}
           </p>
 
-          <RSVPButton
-            eventId={event.id}
-            capacityLimit={event.capacity}
-            registeredCount={event.registered_count}
-            onSuccess={reloadEvent}
-          />
-          {isOrganizerOwner ? (
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={handleApproveEvent}
+              disabled={deleteLoading || event.approval_status === "approved"}
+              style={{ width: "100%", padding: "8px" }}
+            >
+              {event.approval_status === "approved" ? "Approved" : deleteLoading ? "Approving..." : "Approve"}
+            </button>
+          ) : (
+            <RSVPButton
+              eventId={event.id}
+              capacityLimit={event.capacity}
+              registeredCount={event.registered_count}
+              onSuccess={reloadEvent}
+            />
+          )}
+          {isOrganizerOwner || isAdmin ? (
             <button
               type="button"
               onClick={handleDeleteEvent}

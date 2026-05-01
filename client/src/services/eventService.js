@@ -53,6 +53,34 @@ export async function getMyRegisteredEvents(token) {
   return data;
 }
 
+export async function getPendingEvents(token) {
+  const response = await fetch("http://localhost:5000/api/events/pending", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch pending events");
+  }
+  return data;
+}
+
+export async function getAllEventsForAdmin(token) {
+  const response = await fetch("http://localhost:5000/api/events/all", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch all events");
+  }
+  return data;
+}
+
 export async function getEventById(id) {
   const response = await fetch(`http://localhost:5000/api/events/${id}`);
 
@@ -156,6 +184,21 @@ export async function deleteEventById(id, token) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data?.message || "Failed to delete event");
+  }
+  return data;
+}
+
+export async function approveEventById(id, token) {
+  const response = await fetch(`http://localhost:5000/api/events/${id}/approve`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to approve event");
   }
   return data;
 }

@@ -29,7 +29,6 @@ export default function Navbar() {
       {hasToken ? (
         <>
           <NavLink to="/dashboard">Dashboard</NavLink>
-          {role === "admin" ? <NavLink to="/admin">Admin</NavLink> : null}
           <button
             type="button"
             onClick={handleLogout}

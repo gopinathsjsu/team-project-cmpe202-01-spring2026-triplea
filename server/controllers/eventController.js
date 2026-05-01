@@ -157,6 +157,61 @@ async function getMyRegisteredEvents(req, res, next) {
   }
 }
 
+async function getPendingEvents(req, res, next) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.location_name,
+        e.approval_status,
+        e.created_at,
+        u.full_name AS organizer_full_name
+      FROM events e
+      LEFT JOIN users u ON u.id = e.organizer_id
+      WHERE e.approval_status = 'pending'
+      ORDER BY e.created_at DESC
+      `
+    );
+
+    return successResponse(res, result.rows, "Pending events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getAllEventsForAdmin(req, res, next) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.location_name,
+        e.approval_status,
+        e.created_at,
+        u.full_name AS organizer_full_name
+      FROM events e
+      LEFT JOIN users u ON u.id = e.organizer_id
+      ORDER BY e.created_at DESC
+      `
+    );
+
+    return successResponse(res, result.rows, "All events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getEventById(req, res, next) {
   try {
     const { id } = req.params;
@@ -237,7 +292,15 @@ async function createEvent(req, res, next) {
       calendar_link,
     } = req.body;
 
-    if (!title || !event_description || !event_date || !start_time || !capacity) {
+    if (
+      !title ||
+      !event_description ||
+      !event_date ||
+      !start_time ||
+      capacity === undefined ||
+      capacity === null ||
+      String(capacity).trim() === ""
+    ) {
       return errorResponse(
         res,
         400,
@@ -643,6 +706,8 @@ module.exports = {
   getAllEvents,
   getMyEvents,
   getMyRegisteredEvents,
+  getPendingEvents,
+  getAllEventsForAdmin,
   getEventById,
   createEvent,
   updateEvent,

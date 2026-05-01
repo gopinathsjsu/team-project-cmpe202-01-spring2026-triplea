@@ -9,6 +9,8 @@ const {
   getAllEvents,
   getMyEvents,
   getMyRegisteredEvents,
+  getPendingEvents,
+  getAllEventsForAdmin,
   getEventById,
   createEvent,
   updateEvent,
@@ -23,6 +25,8 @@ const {
 router.get("/", getAllEvents);
 router.get("/my-events", authenticateToken, authorizeRoles("organizer"), getMyEvents);
 router.get("/my-registrations", authenticateToken, authorizeRoles("attendee"), getMyRegisteredEvents);
+router.get("/pending", authenticateToken, authorizeRoles("admin"), getPendingEvents);
+router.get("/all", authenticateToken, authorizeRoles("admin"), getAllEventsForAdmin);
 router.get("/:id/rsvp-status", authenticateToken, authorizeRoles("attendee"), getMyRsvpStatus);
 router.get("/:id", getEventById);
 router.post("/", authenticateToken, authorizeRoles("organizer", "admin"), createEvent);
