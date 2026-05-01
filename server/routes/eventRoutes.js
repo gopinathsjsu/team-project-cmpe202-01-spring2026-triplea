@@ -12,14 +12,18 @@ const {
   updateEvent,
   deleteEvent,
   registerForEvent,
+  getMyRsvpStatus,
+  unregisterFromEvent,
   approveEvent,
   rejectEvent,
 } = require("../controllers/eventController");
 
 router.get("/", getAllEvents);
+router.get("/:id/rsvp-status", authenticateToken, getMyRsvpStatus);
 router.get("/:id", getEventById);
 router.post("/", authenticateToken, authorizeRoles("organizer", "admin"), createEvent);
 router.post("/:id/rsvp", authenticateToken, registerForEvent);
+router.delete("/:id/rsvp", authenticateToken, unregisterFromEvent);
 router.put("/:id/approve", authenticateToken, authorizeRoles("admin"), approveEvent);
 router.put("/:id/reject", authenticateToken, authorizeRoles("admin"), rejectEvent);
 router.put("/:id", authenticateToken, authorizeRoles("organizer", "admin"), updateEvent);

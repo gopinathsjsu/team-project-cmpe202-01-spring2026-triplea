@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
 
 export default function LoginPage() {
@@ -218,6 +218,9 @@ export default function LoginPage() {
                 </button>
               </p>
             )}
+            <p style={{ margin: "14px 0 0 0", fontSize: "13px", textAlign: "center" }}>
+              <Link to="/events">Browse without logging in</Link>
+            </p>
           </form>
         </div>
       </section>

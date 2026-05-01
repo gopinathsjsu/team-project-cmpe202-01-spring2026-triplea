@@ -1,14 +1,44 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
 import { getEventById } from "../services/eventService";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
 
+function isEventNotFoundMessage(message) {
+  if (message == null || typeof message !== "string") {
+    return false;
+  }
+  return message.trim().replace(/\.$/, "").toLowerCase() === "event not found";
+}
+
 export default function EventDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const goToEventsWithNotFoundNotice = useCallback(() => {
+    window.alert("Event not found");
+    navigate("/events", { replace: true });
+  }, [navigate]);
+
+  const reloadEvent = useCallback(async () => {
+    if (!id) {
+      return;
+    }
+    try {
+      const response = await getEventById(id);
+      const data = response?.data;
+      if (response?.success && data != null) {
+        setEvent(data);
+      }
+    } catch (err) {
+      if (isEventNotFoundMessage(err?.message)) {
+        goToEventsWithNotFoundNotice();
+      }
+    }
+  }, [id, goToEventsWithNotFoundNotice]);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,13 +56,23 @@ export default function EventDetailPage() {
 
         const data = response?.data;
         if (!response?.success || data == null) {
-          setError("Event not found.");
+          if (!cancelled) {
+            if (isEventNotFoundMessage(response?.message)) {
+              goToEventsWithNotFoundNotice();
+            } else {
+              setError(response?.message || "Something went wrong.");
+            }
+          }
           return;
         }
         setEvent(data);
       } catch (err) {
         if (!cancelled) {
-          setError(err?.message || "Something went wrong.");
+          if (isEventNotFoundMessage(err?.message)) {
+            goToEventsWithNotFoundNotice();
+          } else {
+            setError(err?.message || "Something went wrong.");
+          }
         }
       } finally {
         if (!cancelled) {
@@ -45,13 +85,13 @@ export default function EventDetailPage() {
       load();
     } else {
       setLoading(false);
-      setError("Invalid event link.");
+      goToEventsWithNotFoundNotice();
     }
 
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, goToEventsWithNotFoundNotice]);
 
   if (loading) {
     return (
@@ -148,7 +188,11 @@ export default function EventDetailPage() {
           <hr style={{ margin: "12px 0" }} />
 
           <p style={{ margin: "0 0 4px 0" }}>
-            <strong>Capacity:</strong> {event.capacity ?? "—"}
+            <strong>Capacity limit:</strong> {event.capacity ?? "—"}
+          </p>
+          <p style={{ margin: "0 0 4px 0" }}>
+            <strong>Registered Count:</strong>{" "}
+            {event.registered_count != null ? String(event.registered_count) : "—"}
           </p>
           <p style={{ margin: "0 0 4px 0" }}>
             <strong>Pricing:</strong> {formatPrice()}
@@ -157,7 +201,12 @@ export default function EventDetailPage() {
             <strong>Status:</strong> {event.approval_status ?? "—"}
           </p>
 
-          <RSVPButton />
+          <RSVPButton
+            eventId={event.id}
+            capacityLimit={event.capacity}
+            registeredCount={event.registered_count}
+            onSuccess={reloadEvent}
+          />
           <button type="button" style={{ marginTop: "8px", width: "100%", padding: "8px" }}>
             Add to Calendar
           </button>

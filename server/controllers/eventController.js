@@ -102,6 +102,11 @@ async function getEventById(req, res, next) {
         e.calendar_link,
         e.created_at,
         e.updated_at,
+        (
+          SELECT COUNT(*)::int
+          FROM registrations r
+          WHERE r.event_id = e.id AND r.registration_status = 'registered'
+        ) AS registered_count,
         u.full_name AS organizer_full_name
       FROM events e
       LEFT JOIN users u ON u.id = e.organizer_id
@@ -382,13 +387,11 @@ async function registerForEvent(req, res, next) {
     }
 
     const existingRegistration = await pool.query(
-      `SELECT id FROM registrations WHERE user_id = $1 AND event_id = $2`,
+      `SELECT id, registration_status FROM registrations WHERE user_id = $1 AND event_id = $2`,
       [userId, eventId]
     );
 
-    if (existingRegistration.rows.length > 0) {
-      return errorResponse(res, 409, "User is already registered for this event");
-    }
+    const existingRow = existingRegistration.rows[0];
 
     const activeRegistrationCountResult = await pool.query(
       `
@@ -402,8 +405,29 @@ async function registerForEvent(req, res, next) {
     const activeRegistrationCount = Number(activeRegistrationCountResult.rows[0].active_count);
     const eventCapacity = Number(eventResult.rows[0].capacity);
 
+    if (existingRow && existingRow.registration_status === "registered") {
+      return errorResponse(res, 409, "User is already registered for this event");
+    }
+
     if (activeRegistrationCount >= eventCapacity) {
       return errorResponse(res, 400, "Event capacity has been reached");
+    }
+
+    if (existingRow) {
+      const revivedResult = await pool.query(
+        `
+        UPDATE registrations
+        SET
+          registration_status = 'registered',
+          cancelled_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1 AND event_id = $2
+        RETURNING *
+        `,
+        [userId, eventId]
+      );
+
+      return successResponse(res, revivedResult.rows[0], "RSVP registration successful", 200);
     }
 
     const registrationResult = await pool.query(
@@ -421,6 +445,60 @@ async function registerForEvent(req, res, next) {
       "RSVP registration successful",
       201
     );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getMyRsvpStatus(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const userId = req.user.userId;
+
+    const eventExists = await pool.query(`SELECT id FROM events WHERE id = $1`, [eventId]);
+    if (eventExists.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const registration = await pool.query(
+      `
+      SELECT id
+      FROM registrations
+      WHERE user_id = $1 AND event_id = $2 AND registration_status = 'registered'
+      `,
+      [userId, eventId]
+    );
+
+    const registered = registration.rows.length > 0;
+    return successResponse(res, { registered }, "RSVP status fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function unregisterFromEvent(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      `
+      UPDATE registrations
+      SET
+        registration_status = 'cancelled',
+        cancelled_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1 AND event_id = $2 AND registration_status = 'registered'
+      RETURNING id
+      `,
+      [userId, eventId]
+    );
+
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, "No active registration found for this event");
+    }
+
+    return successResponse(res, null, "Unregistered successfully");
   } catch (error) {
     return next(error);
   }
@@ -483,6 +561,8 @@ module.exports = {
   updateEvent,
   deleteEvent,
   registerForEvent,
+  getMyRsvpStatus,
+  unregisterFromEvent,
   approveEvent,
   rejectEvent,
 };
