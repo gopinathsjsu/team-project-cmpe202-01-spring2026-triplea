@@ -100,6 +100,20 @@ export async function getEventById(id) {
   return response.json();
 }
 
+export async function getEventAttendees(id, token) {
+  const response = await fetch(`http://localhost:5000/api/events/${id}/attendees`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch attendees");
+  }
+  return data;
+}
+
 export async function getRsvpStatus(id, token) {
   const response = await fetch(`http://localhost:5000/api/events/${id}/rsvp-status`, {
     headers: {

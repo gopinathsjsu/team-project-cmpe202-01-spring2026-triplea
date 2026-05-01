@@ -212,6 +212,51 @@ async function getAllEventsForAdmin(req, res, next) {
   }
 }
 
+async function getEventAttendees(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const requester = req.user;
+
+    const eventResult = await pool.query(
+      `SELECT id, organizer_id FROM events WHERE id = $1`,
+      [eventId]
+    );
+
+    if (eventResult.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const event = eventResult.rows[0];
+    const isAdmin = requester?.role === "admin";
+    const isOwnerOrganizer =
+      requester?.role === "organizer" &&
+      Number(requester?.userId) === Number(event.organizer_id);
+
+    if (!isAdmin && !isOwnerOrganizer) {
+      return errorResponse(res, 403, "Forbidden: insufficient permissions");
+    }
+
+    const attendeesResult = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.full_name,
+        u.email,
+        r.registered_at
+      FROM registrations r
+      INNER JOIN users u ON u.id = r.user_id
+      WHERE r.event_id = $1 AND r.registration_status = 'registered'
+      ORDER BY r.registered_at ASC
+      `,
+      [eventId]
+    );
+
+    return successResponse(res, attendeesResult.rows, "Event attendees fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getEventById(req, res, next) {
   try {
     const { id } = req.params;
@@ -708,6 +753,7 @@ module.exports = {
   getMyRegisteredEvents,
   getPendingEvents,
   getAllEventsForAdmin,
+  getEventAttendees,
   getEventById,
   createEvent,
   updateEvent,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
-import { approveEventById, deleteEventById, getEventById } from "../services/eventService";
+import { approveEventById, deleteEventById, getEventAttendees, getEventById } from "../services/eventService";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
 
@@ -19,6 +19,9 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [attendees, setAttendees] = useState([]);
+  const [attendeesLoading, setAttendeesLoading] = useState(false);
+  const [attendeesError, setAttendeesError] = useState("");
 
   const goToEventsWithNotFoundNotice = useCallback(() => {
     window.alert("Event not found");
@@ -95,6 +98,53 @@ export default function EventDetailPage() {
     };
   }, [id, goToEventsWithNotFoundNotice]);
 
+  const decoded = decodeJwtPayload(localStorage.getItem("token"));
+  const isAdmin = decoded?.role === "admin";
+  const isOrganizerOwner =
+    decoded?.role === "organizer" &&
+    Number(decoded?.userId) === Number(event?.organizer_id);
+  const canSeeAttendees = isAdmin || isOrganizerOwner;
+
+  useEffect(() => {
+    if (!event?.id || !canSeeAttendees) {
+      setAttendees([]);
+      setAttendeesLoading(false);
+      setAttendeesError("");
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setAttendees([]);
+      setAttendeesLoading(false);
+      setAttendeesError("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setAttendeesLoading(true);
+      setAttendeesError("");
+      try {
+        const res = await getEventAttendees(event.id, token);
+        if (!cancelled) {
+          setAttendees(Array.isArray(res?.data) ? res.data : []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setAttendees([]);
+          setAttendeesError(err?.message || "Failed to load attendee list");
+        }
+      } finally {
+        if (!cancelled) {
+          setAttendeesLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [event?.id, canSeeAttendees]);
+
   if (loading) {
     return (
       <main style={{ padding: "16px" }}>
@@ -138,12 +188,6 @@ export default function EventDetailPage() {
     event.location_address,
     [event.location_city, event.location_state, event.location_zip_code].filter(Boolean).join(", ") || null,
   ].filter(Boolean);
-
-  const decoded = decodeJwtPayload(localStorage.getItem("token"));
-  const isAdmin = decoded?.role === "admin";
-  const isOrganizerOwner =
-    decoded?.role === "organizer" &&
-    Number(decoded?.userId) === Number(event.organizer_id);
 
   const handleApproveEvent = async () => {
     const token = localStorage.getItem("token");
@@ -217,6 +261,28 @@ export default function EventDetailPage() {
           <p style={{ marginTop: 0 }}>
             {event.organizer_full_name?.trim() ? event.organizer_full_name : "—"}
           </p>
+
+          {canSeeAttendees ? (
+            <section style={{ marginTop: "14px", borderTop: "1px solid #eee", paddingTop: "10px" }}>
+              <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>RSVP attendees</h2>
+              {attendeesLoading ? <p style={{ marginTop: 0 }}>Loading attendee list…</p> : null}
+              {attendeesError ? <p style={{ marginTop: 0, color: "#b00020" }}>{attendeesError}</p> : null}
+              {!attendeesLoading && !attendeesError ? (
+                attendees.length === 0 ? (
+                  <p style={{ marginTop: 0, color: "#666" }}>No attendees yet.</p>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: "18px", display: "grid", gap: "6px" }}>
+                    {attendees.map((user) => (
+                      <li key={user.id}>
+                        <span>{user.full_name || "Unknown attendee"}</span>
+                        <span style={{ color: "#555" }}> ({user.email || "no email"})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : null}
+            </section>
+          ) : null}
         </section>
 
         <aside style={{ border: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
