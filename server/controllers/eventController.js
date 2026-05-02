@@ -28,6 +28,8 @@ const isValidCapacity = (capacity) => {
   return Number.isFinite(numericCapacity) && numericCapacity > 0;
 };
 
+const MAX_REJECTION_REASON_LENGTH = 2000;
+
 function canManageEvents(user) {
   return user && (user.role === "organizer" || user.role === "admin");
 }
@@ -36,9 +38,22 @@ async function getAllEvents(req, res, next) {
   try {
     const { keyword, category, date, location } = req.query;
 
-    const conditions = [`e.approval_status = 'approved'`];
+    const viewer = req.user && typeof req.user === "object" ? req.user : null;
+    const conditions = [];
     const values = [];
     let paramIndex = 1;
+
+    if (!viewer || typeof viewer.role !== "string") {
+      conditions.push(`e.approval_status = 'approved'`);
+    } else if (viewer.role === "admin") {
+      /* all events — no approval filter */
+    } else if (viewer.role === "organizer") {
+      conditions.push(`(e.approval_status = 'approved' OR e.organizer_id = $${paramIndex})`);
+      values.push(viewer.userId);
+      paramIndex++;
+    } else {
+      conditions.push(`e.approval_status = 'approved'`);
+    }
 
     if (keyword) {
       conditions.push(`(
@@ -92,6 +107,7 @@ async function getAllEvents(req, res, next) {
         e.longitude,
         e.capacity,
         e.approval_status,
+        e.rejection_reason,
         e.is_free,
         e.ticket_price,
         e.schedule_notes,
@@ -123,7 +139,7 @@ async function getAllEvents(req, res, next) {
         ON e.organizer_id = u.id
       LEFT JOIN registrations r
         ON e.id = r.event_id
-      WHERE ${conditions.join(" AND ")}
+      WHERE ${conditions.length > 0 ? conditions.join(" AND ") : "TRUE"}
       GROUP BY e.id, u.id
       ORDER BY e.event_date ASC, e.start_time ASC
     `;
@@ -159,6 +175,7 @@ async function getMyEvents(req, res, next) {
         longitude,
         capacity,
         approval_status,
+        rejection_reason,
         is_free,
         ticket_price,
         schedule_notes,
@@ -209,7 +226,9 @@ async function getMyRegisteredEvents(req, res, next) {
         e.updated_at
       FROM events e
       INNER JOIN registrations r ON r.event_id = e.id
-      WHERE r.user_id = $1 AND r.registration_status = 'registered'
+      WHERE r.user_id = $1
+        AND r.registration_status = 'registered'
+        AND e.approval_status = 'approved'
       ORDER BY e.event_date ASC, e.start_time ASC
       `,
       [userId]
@@ -234,6 +253,7 @@ async function getPendingEvents(req, res, next) {
         e.start_time,
         e.location_name,
         e.approval_status,
+        e.rejection_reason,
         e.created_at,
         u.full_name AS organizer_full_name
       FROM events e
@@ -262,6 +282,7 @@ async function getAllEventsForAdmin(req, res, next) {
         e.start_time,
         e.location_name,
         e.approval_status,
+        e.rejection_reason,
         e.created_at,
         u.full_name AS organizer_full_name
       FROM events e
@@ -345,6 +366,7 @@ async function getEventById(req, res, next) {
         e.longitude,
         e.capacity,
         e.approval_status,
+        e.rejection_reason,
         e.is_free,
         e.ticket_price,
         e.schedule_notes,
@@ -388,7 +410,19 @@ async function getEventById(req, res, next) {
       return errorResponse(res, 404, "Event not found");
     }
 
-    return successResponse(res, result.rows[0], "Event fetched successfully");
+    const eventRow = result.rows[0];
+    const viewer = req.optionalUser;
+    const canViewUnrestricted =
+      viewer?.role === "admin" ||
+      (viewer?.role === "organizer" &&
+        viewer.userId != null &&
+        Number(viewer.userId) === Number(eventRow.organizer_id));
+
+    if (!canViewUnrestricted && eventRow.approval_status !== "approved") {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    return successResponse(res, eventRow, "Event fetched successfully");
   } catch (error) {
     return next(error);
   }
@@ -658,9 +692,13 @@ async function registerForEvent(req, res, next) {
     const { id: eventId } = req.params;
     const userId = req.user.userId;
 
-    const eventResult = await pool.query(`SELECT id, capacity FROM events WHERE id = $1`, [eventId]);
+    const eventResult = await pool.query(`SELECT id, capacity, approval_status FROM events WHERE id = $1`, [eventId]);
     if (eventResult.rows.length === 0) {
       return errorResponse(res, 404, "Event not found");
+    }
+
+    if (eventResult.rows[0].approval_status !== "approved") {
+      return errorResponse(res, 403, "Event is not approved for registration");
     }
 
     const existingRegistration = await pool.query(
@@ -732,9 +770,13 @@ async function getMyRsvpStatus(req, res, next) {
     const { id: eventId } = req.params;
     const userId = req.user.userId;
 
-    const eventExists = await pool.query(`SELECT id FROM events WHERE id = $1`, [eventId]);
+    const eventExists = await pool.query(`SELECT id, approval_status FROM events WHERE id = $1`, [eventId]);
     if (eventExists.rows.length === 0) {
       return errorResponse(res, 404, "Event not found");
+    }
+
+    if (eventExists.rows[0].approval_status !== "approved") {
+      return errorResponse(res, 403, "Event is not approved for registration");
     }
 
     const registration = await pool.query(
@@ -793,7 +835,7 @@ async function approveEvent(req, res, next) {
     const result = await pool.query(
       `
       UPDATE events
-      SET approval_status = 'approved', updated_at = CURRENT_TIMESTAMP
+      SET approval_status = 'approved', rejection_reason = NULL, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING *
       `,
@@ -809,6 +851,30 @@ async function approveEvent(req, res, next) {
 async function rejectEvent(req, res, next) {
   try {
     const { id } = req.params;
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const raw =
+      Object.prototype.hasOwnProperty.call(body, "rejection_reason") && body.rejection_reason !== undefined
+        ? body.rejection_reason
+        : Object.prototype.hasOwnProperty.call(body, "reason") && body.reason !== undefined
+          ? body.reason
+          : undefined;
+
+    if (raw !== undefined && raw !== null && typeof raw !== "string") {
+      return errorResponse(res, 400, "Rejection reason is required as non-empty text");
+    }
+
+    const rejection_reason = typeof raw === "string" ? raw.trim() : "";
+
+    if (!rejection_reason) {
+      return errorResponse(res, 400, "Rejection reason is required");
+    }
+    if (rejection_reason.length > MAX_REJECTION_REASON_LENGTH) {
+      return errorResponse(
+        res,
+        400,
+        `Rejection reason must be at most ${MAX_REJECTION_REASON_LENGTH} characters`
+      );
+    }
 
     const existing = await pool.query(`SELECT id FROM events WHERE id = $1`, [id]);
     if (existing.rows.length === 0) {
@@ -818,11 +884,14 @@ async function rejectEvent(req, res, next) {
     const result = await pool.query(
       `
       UPDATE events
-      SET approval_status = 'rejected', updated_at = CURRENT_TIMESTAMP
+      SET
+        approval_status = 'rejected',
+        rejection_reason = $2,
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
       RETURNING *
       `,
-      [id]
+      [id, rejection_reason]
     );
 
     return successResponse(res, result.rows[0], "Event rejected successfully");

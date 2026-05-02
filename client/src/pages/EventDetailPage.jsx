@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
-import { approveEventById, deleteEventById, getEventAttendees, getEventById } from "../services/eventService";
+import { approveEventById, deleteEventById, getEventAttendees, getEventById, rejectEventById } from "../services/eventService";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
 
@@ -10,6 +10,14 @@ function isEventNotFoundMessage(message) {
     return false;
   }
   return message.trim().replace(/\.$/, "").toLowerCase() === "event not found";
+}
+
+function formatApprovalStatusLabel(status) {
+  if (status == null || typeof status !== "string" || !status.trim()) {
+    return "—";
+  }
+  const s = status.trim();
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
 export default function EventDetailPage() {
@@ -22,6 +30,8 @@ export default function EventDetailPage() {
   const [attendees, setAttendees] = useState([]);
   const [attendeesLoading, setAttendeesLoading] = useState(false);
   const [attendeesError, setAttendeesError] = useState("");
+  const [rejectFormOpen, setRejectFormOpen] = useState(false);
+  const [rejectDraft, setRejectDraft] = useState("");
 
   const goToEventsWithNotFoundNotice = useCallback(() => {
     window.alert("Event not found");
@@ -145,6 +155,13 @@ export default function EventDetailPage() {
     };
   }, [event?.id, canSeeAttendees]);
 
+  useEffect(() => {
+    if (event?.approval_status !== "pending") {
+      setRejectFormOpen(false);
+      setRejectDraft("");
+    }
+  }, [event?.approval_status]);
+
   if (loading) {
     return (
       <main style={{ padding: "16px" }}>
@@ -201,6 +218,30 @@ export default function EventDetailPage() {
       await reloadEvent();
     } catch (err) {
       window.alert(err?.message || "Failed to approve event");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const submitDisapproval = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || !event?.id) {
+      return;
+    }
+    const trimmed = rejectDraft.trim();
+    if (!trimmed) {
+      window.alert("Rejection comment is required.");
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await rejectEventById(event.id, token, { rejection_reason: trimmed });
+      window.alert("Event disapproved (rejected).");
+      setRejectFormOpen(false);
+      setRejectDraft("");
+      await reloadEvent();
+    } catch (err) {
+      window.alert(err?.message || "Failed to disapprove event");
     } finally {
       setDeleteLoading(false);
     }
@@ -309,19 +350,123 @@ export default function EventDetailPage() {
           <p style={{ margin: "0 0 4px 0" }}>
             <strong>Pricing:</strong> {formatPrice()}
           </p>
-          <p style={{ margin: "0 0 12px 0" }}>
-            <strong>Status:</strong> {event.approval_status ?? "—"}
-          </p>
+          {(isAdmin || !isOrganizerOwner) ? (
+            <p style={{ margin: "0 0 12px 0" }}>
+              <strong>Status:</strong> {event.approval_status ?? "—"}
+            </p>
+          ) : null}
+          {isAdmin && event.approval_status === "rejected" && event.rejection_reason?.trim() ? (
+            <p
+              style={{
+                margin: "0 0 12px 0",
+                padding: "8px 10px",
+                background: "#fff8f8",
+                border: "1px solid #f0c4c4",
+                fontSize: "13px",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              <strong>Rejection reason:</strong> {event.rejection_reason.trim()}
+            </p>
+          ) : null}
 
           {isAdmin ? (
-            <button
-              type="button"
-              onClick={handleApproveEvent}
-              disabled={deleteLoading || event.approval_status === "approved"}
-              style={{ width: "100%", padding: "8px" }}
-            >
-              {event.approval_status === "approved" ? "Approved" : deleteLoading ? "Approving..." : "Approve"}
-            </button>
+            <div style={{ display: "grid", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={handleApproveEvent}
+                disabled={deleteLoading || event.approval_status === "approved" || event.approval_status === "rejected"}
+                style={{ width: "100%", padding: "8px" }}
+              >
+                {event.approval_status === "approved"
+                  ? "Approved"
+                  : deleteLoading
+                    ? "Working…"
+                    : "Approve"}
+              </button>
+              {event.approval_status === "pending" && !rejectFormOpen ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectFormOpen(true);
+                    setRejectDraft("");
+                  }}
+                  disabled={deleteLoading}
+                  style={{ width: "100%", padding: "8px" }}
+                >
+                  Disapprove
+                </button>
+              ) : null}
+              {event.approval_status === "pending" && rejectFormOpen ? (
+                <div style={{ display: "grid", gap: "8px" }}>
+                  <label style={{ fontSize: "13px", fontWeight: 600 }}>Comment for organizer (required)</label>
+                  <textarea
+                    value={rejectDraft}
+                    onChange={(e) => setRejectDraft(e.target.value)}
+                    rows={4}
+                    placeholder="Briefly explain why this event was disapproved…"
+                    disabled={deleteLoading}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "8px",
+                      fontSize: "14px",
+                      fontFamily: "inherit",
+                      resize: "vertical",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={submitDisapproval}
+                    disabled={deleteLoading}
+                    style={{ width: "100%", padding: "8px", fontWeight: 600 }}
+                  >
+                    {deleteLoading ? "Submitting…" : "Submit Disapproval"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleteLoading}
+                    onClick={() => {
+                      setRejectFormOpen(false);
+                      setRejectDraft("");
+                    }}
+                    style={{ width: "100%", padding: "8px" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : isOrganizerOwner ? (
+            <div style={{ margin: "0 0 12px 0", display: "grid", gap: "8px" }}>
+              <p
+                style={{
+                  margin: 0,
+                  padding: "10px 12px",
+                  background: "#f5f5f5",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  fontSize: "15px",
+                }}
+              >
+                <strong>Status:</strong> {formatApprovalStatusLabel(event.approval_status)}
+              </p>
+              {event.approval_status === "rejected" && event.rejection_reason?.trim() ? (
+                <p
+                  style={{
+                    margin: 0,
+                    padding: "10px 12px",
+                    background: "#fff8f8",
+                    border: "1px solid #f0c4c4",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  <strong>Why it was disapproved:</strong> {event.rejection_reason.trim()}
+                </p>
+              ) : null}
+            </div>
           ) : (
             <RSVPButton
               eventId={event.id}
