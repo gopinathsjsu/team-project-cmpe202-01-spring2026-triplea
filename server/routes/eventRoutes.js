@@ -3,7 +3,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { authenticateToken } = require("../middleware/authMiddleware");
+const { authenticateToken, authenticateTokenOptional } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/authorizeRole");
 const {
   getAllEvents,
@@ -30,7 +30,7 @@ router.get("/pending", authenticateToken, authorizeRoles("admin"), getPendingEve
 router.get("/all", authenticateToken, authorizeRoles("admin"), getAllEventsForAdmin);
 router.get("/:id/attendees", authenticateToken, authorizeRoles("organizer", "admin"), getEventAttendees);
 router.get("/:id/rsvp-status", authenticateToken, authorizeRoles("attendee"), getMyRsvpStatus);
-router.get("/:id", getEventById);
+router.get("/:id", authenticateTokenOptional, getEventById);
 router.post("/", authenticateToken, authorizeRoles("organizer", "admin"), createEvent);
 router.post("/:id/rsvp", authenticateToken, authorizeRoles("attendee"), registerForEvent);
 router.delete("/:id/rsvp", authenticateToken, authorizeRoles("attendee"), unregisterFromEvent);

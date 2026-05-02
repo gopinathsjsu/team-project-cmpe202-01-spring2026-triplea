@@ -81,8 +81,14 @@ export async function getAllEventsForAdmin(token) {
   return data;
 }
 
-export async function getEventById(id) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}`);
+export async function getEventById(id, tokenMaybe) {
+  const token = typeof tokenMaybe === "string" ? tokenMaybe : typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`http://localhost:5000/api/events/${id}`, { headers });
 
   if (!response.ok) {
     let message = "Failed to fetch event";
@@ -213,6 +219,25 @@ export async function approveEventById(id, token) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data?.message || "Failed to approve event");
+  }
+  return data;
+}
+
+export async function rejectEventById(id, token, payload) {
+  const rejection_reason =
+    typeof payload?.rejection_reason === "string" ? payload.rejection_reason : "";
+  const response = await fetch(`http://localhost:5000/api/events/${id}/reject`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ rejection_reason }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to disapprove event");
   }
   return data;
 }

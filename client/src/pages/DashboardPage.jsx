@@ -7,6 +7,7 @@ import {
   getMyEvents,
   getMyRegisteredEvents,
   getPendingEvents,
+  rejectEventById,
 } from "../services/eventService";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
@@ -54,6 +55,9 @@ export default function DashboardPage() {
   const [registeredError, setRegisteredError] = useState("");
   const [pendingError, setPendingError] = useState("");
   const [allAdminError, setAllAdminError] = useState("");
+  const [rejectingEventId, setRejectingEventId] = useState(null);
+  const [rejectCommentDraft, setRejectCommentDraft] = useState("");
+  const [rejectSubmitting, setRejectSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOrganizer) {
@@ -195,10 +199,32 @@ export default function DashboardPage() {
     };
   }, [isAdmin]);
 
-  const createdSplit = useMemo(() => splitEventsByToday(createdEvents), [createdEvents]);
+  const organizerPendingEvents = useMemo(
+    () => createdEvents.filter((ev) => ev.approval_status === "pending"),
+    [createdEvents]
+  );
+  const organizerEventsForUpcomingPast = useMemo(
+    () =>
+      createdEvents.filter(
+        (ev) =>
+          ev.approval_status !== "rejected" && ev.approval_status !== "pending"
+      ),
+    [createdEvents]
+  );
+  const organizerDisapprovedEvents = useMemo(
+    () => createdEvents.filter((ev) => ev.approval_status === "rejected"),
+    [createdEvents]
+  );
+  const createdSplit = useMemo(() => splitEventsByToday(organizerEventsForUpcomingPast), [organizerEventsForUpcomingPast]);
   const registeredSplit = useMemo(() => splitEventsByToday(registeredEvents), [registeredEvents]);
 
-  const renderEventRows = (list) => {
+  const adminDisapprovedEvents = useMemo(
+    () => allAdminEvents.filter((ev) => ev.approval_status === "rejected"),
+    [allAdminEvents]
+  );
+
+  const renderEventRows = (list, options = {}) => {
+    const { showRejectedReason = false } = options;
     if (list.length === 0) {
       return <p style={{ marginTop: 0, color: "#666" }}>No events.</p>;
     }
@@ -225,6 +251,11 @@ export default function DashboardPage() {
             <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
               Approval: {ev.approval_status ?? "—"}
             </p>
+            {showRejectedReason && ev.approval_status === "rejected" && ev.rejection_reason?.trim() ? (
+              <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#7a1515", whiteSpace: "pre-wrap" }}>
+                <strong>Admin note:</strong> {ev.rejection_reason.trim()}
+              </p>
+            ) : null}
           </Link>
         ))}
       </div>
@@ -239,6 +270,11 @@ export default function DashboardPage() {
           <h3 style={{ marginTop: 0 }}>Dashboard</h3>
           <p style={{ margin: "8px 0", fontWeight: 600 }}>Overview</p>
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
+            <a href="#my-pending" style={{ color: "inherit" }}>
+              Pending events
+            </a>
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
             <a href="#my-upcoming" style={{ color: "inherit" }}>
               Upcoming events
             </a>
@@ -246,6 +282,11 @@ export default function DashboardPage() {
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
             <a href="#my-past" style={{ color: "inherit" }}>
               Past events
+            </a>
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
+            <a href="#my-disapproved" style={{ color: "inherit" }}>
+              Disapproved events
             </a>
           </p>
         </aside>
@@ -261,25 +302,45 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "10px" }}>
             <div style={{ border: "1px solid #ddd", padding: "10px" }}>Total events: {createdEvents.length}</div>
+            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Pending: {organizerPendingEvents.length}</div>
             <div style={{ border: "1px solid #ddd", padding: "10px" }}>Upcoming: {upcoming.length}</div>
             <div style={{ border: "1px solid #ddd", padding: "10px" }}>Past: {past.length}</div>
+            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Disapproved: {organizerDisapprovedEvents.length}</div>
           </div>
 
           {createdLoading ? <p style={{ margin: 0 }}>Loading your events…</p> : null}
           {createdError ? <p style={{ margin: 0, color: "#b00020" }}>{createdError}</p> : null}
 
+          <section id="my-pending" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
+            <h3 style={{ marginTop: 0 }}>Pending events</h3>
+            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
+              Waiting for an admin to approve or disapprove.
+            </p>
+            {!createdLoading ? renderEventRows(organizerPendingEvents) : null}
+          </section>
+
           <section id="my-upcoming" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
             <h3 style={{ marginTop: 0 }}>Upcoming events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>Events you created with today&apos;s date or later.</p>
+            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
+              Approved events you created with today&apos;s date or later (RSVP opens after approval).
+            </p>
             {!createdLoading ? renderEventRows(upcoming) : null}
           </section>
 
           <section id="my-past" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
             <h3 style={{ marginTop: 0 }}>Past events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>Events you created before today.</p>
+            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>Approved events you created before today.</p>
             {!createdLoading ? renderEventRows(past) : null}
+          </section>
+
+          <section id="my-disapproved" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
+            <h3 style={{ marginTop: 0 }}>Disapproved events</h3>
+            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
+              Events an admin marked as rejected. They are hidden from the public event list.
+            </p>
+            {!createdLoading ? renderEventRows(organizerDisapprovedEvents, { showRejectedReason: true }) : null}
           </section>
         </section>
       </main>
@@ -346,8 +407,51 @@ export default function DashboardPage() {
       try {
         await approveEventById(eventId, token);
         setPendingEvents((prev) => prev.filter((ev) => ev.id !== eventId));
+        setAllAdminEvents((prev) =>
+          prev.map((ev) =>
+            ev.id === eventId ? { ...ev, approval_status: "approved", rejection_reason: null } : ev
+          )
+        );
+        if (eventId === rejectingEventId) {
+          setRejectingEventId(null);
+          setRejectCommentDraft("");
+        }
       } catch (e) {
         window.alert(e?.message || "Failed to approve event");
+      }
+    };
+
+    const submitDisapprovalForEvent = async (eventId) => {
+      if (!token) {
+        return;
+      }
+      const trimmed = rejectCommentDraft.trim();
+      if (!trimmed) {
+        window.alert("Rejection comment is required.");
+        return;
+      }
+      setRejectSubmitting(true);
+      try {
+        const response = await rejectEventById(eventId, token, { rejection_reason: trimmed });
+        const saved = response?.data;
+        setPendingEvents((prev) => prev.filter((ev) => ev.id !== eventId));
+        setAllAdminEvents((prev) =>
+          prev.map((ev) =>
+            ev.id === eventId
+              ? {
+                  ...ev,
+                  approval_status: "rejected",
+                  rejection_reason: saved?.rejection_reason ?? trimmed,
+                }
+              : ev
+          )
+        );
+        setRejectingEventId(null);
+        setRejectCommentDraft("");
+      } catch (e) {
+        window.alert(e?.message || "Failed to disapprove event");
+      } finally {
+        setRejectSubmitting(false);
       }
     };
 
@@ -378,6 +482,11 @@ export default function DashboardPage() {
               Pending events
             </a>
           </p>
+          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
+            <a href="#disapproved-events-admin" style={{ color: "inherit" }}>
+              Disapproved events
+            </a>
+          </p>
         </aside>
 
         <section style={{ padding: "16px", display: "grid", gap: "16px" }}>
@@ -402,26 +511,134 @@ export default function DashboardPage() {
                         border: "1px solid #eee",
                         padding: "10px",
                         display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "start",
-                        gap: "12px",
+                        flexDirection: "column",
+                        gap: "10px",
                       }}
                     >
-                      <Link to={`/events/${ev.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1 }}>
-                        <strong>{ev.title || "Untitled event"}</strong>
-                        <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#555" }}>
-                          {formatDisplayDate(ev.event_date)}
-                          {ev.start_time ? ` · ${ev.start_time}` : ""}
-                          {ev.location_name ? ` · ${ev.location_name}` : ""}
-                        </p>
-                        <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
-                          Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
-                        </p>
-                      </Link>
-                      <button type="button" onClick={() => handleApprove(ev.id)} style={{ padding: "8px 10px" }}>
-                        Approve
-                      </button>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "12px" }}>
+                        <Link to={`/events/${ev.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1 }}>
+                          <strong>{ev.title || "Untitled event"}</strong>
+                          <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#555" }}>
+                            {formatDisplayDate(ev.event_date)}
+                            {ev.start_time ? ` · ${ev.start_time}` : ""}
+                            {ev.location_name ? ` · ${ev.location_name}` : ""}
+                          </p>
+                          <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
+                            Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
+                          </p>
+                        </Link>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", flexShrink: 0 }}>
+                          <button type="button" onClick={() => handleApprove(ev.id)} style={{ padding: "8px 10px" }}>
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejectingEventId(ev.id);
+                              setRejectCommentDraft("");
+                            }}
+                            disabled={rejectSubmitting}
+                            style={{ padding: "8px 10px" }}
+                          >
+                            Disapprove
+                          </button>
+                        </div>
+                      </div>
+                      {rejectingEventId === ev.id ? (
+                        <div
+                          style={{
+                            paddingTop: "8px",
+                            borderTop: "1px solid #eee",
+                            display: "grid",
+                            gap: "8px",
+                          }}
+                        >
+                          <label style={{ fontSize: "13px", fontWeight: 600 }}>
+                            Comment for organizer (required)
+                          </label>
+                          <textarea
+                            value={rejectCommentDraft}
+                            onChange={(e) => setRejectCommentDraft(e.target.value)}
+                            rows={4}
+                            placeholder="Briefly explain why this event was disapproved…"
+                            style={{
+                              width: "100%",
+                              boxSizing: "border-box",
+                              padding: "8px",
+                              fontSize: "14px",
+                              fontFamily: "inherit",
+                              resize: "vertical",
+                            }}
+                          />
+                          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              disabled={rejectSubmitting}
+                              onClick={() => submitDisapprovalForEvent(ev.id)}
+                              style={{ padding: "8px 14px", fontWeight: 600 }}
+                            >
+                              {rejectSubmitting ? "Submitting…" : "Submit Disapproval"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rejectSubmitting}
+                              onClick={() => {
+                                setRejectingEventId(null);
+                                setRejectCommentDraft("");
+                              }}
+                              style={{ padding: "8px 14px" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
+                  ))}
+                </div>
+              )
+            ) : null}
+          </div>
+
+          <div id="disapproved-events-admin" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
+            <h3 style={{ marginTop: 0 }}>Disapproved events</h3>
+            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
+              Pending submissions that were rejected (disapproved).
+            </p>
+            {allAdminLoading ? <p style={{ marginTop: 0 }}>Loading…</p> : null}
+            {allAdminError ? <p style={{ marginTop: 0, color: "#b00020" }}>{allAdminError}</p> : null}
+            {!allAdminLoading && !allAdminError ? (
+              adminDisapprovedEvents.length === 0 ? (
+                <p style={{ marginTop: 0, color: "#666" }}>No disapproved events.</p>
+              ) : (
+                <div style={{ display: "grid", gap: "8px" }}>
+                  {adminDisapprovedEvents.map((ev) => (
+                    <Link
+                      key={`rej-${ev.id}`}
+                      to={`/events/${ev.id}`}
+                      style={{
+                        display: "block",
+                        border: "1px solid #eee",
+                        padding: "10px",
+                        textDecoration: "none",
+                        color: "inherit",
+                      }}
+                    >
+                      <strong>{ev.title || "Untitled event"}</strong>
+                      <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#555" }}>
+                        {formatDisplayDate(ev.event_date)}
+                        {ev.start_time ? ` · ${ev.start_time}` : ""}
+                        {ev.location_name ? ` · ${ev.location_name}` : ""}
+                      </p>
+                      <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
+                        Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
+                      </p>
+                      {ev.rejection_reason?.trim() ? (
+                        <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#555", whiteSpace: "pre-wrap" }}>
+                          <strong>Reason recorded:</strong> {ev.rejection_reason.trim()}
+                        </p>
+                      ) : null}
+                    </Link>
                   ))}
                 </div>
               )

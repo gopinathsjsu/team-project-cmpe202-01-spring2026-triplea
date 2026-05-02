@@ -32,6 +32,7 @@ CREATE TABLE events (
     capacity INTEGER NOT NULL CHECK (capacity > 0),
     approval_status VARCHAR(20) NOT NULL DEFAULT 'pending'
         CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+    rejection_reason TEXT,
     is_free BOOLEAN NOT NULL DEFAULT true,
     ticket_price NUMERIC(10,2) NOT NULL DEFAULT 0.00 CHECK (ticket_price >= 0),
     schedule_notes TEXT,
