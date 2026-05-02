@@ -34,37 +34,101 @@ function canManageEvents(user) {
 
 async function getAllEvents(req, res, next) {
   try {
-    const result = await pool.query(
-      `
+    const { keyword, category, date, location } = req.query;
+
+    const conditions = [`e.approval_status = 'approved'`];
+    const values = [];
+    let paramIndex = 1;
+
+    if (keyword) {
+      conditions.push(`(
+        e.title ILIKE $${paramIndex}
+        OR e.event_description ILIKE $${paramIndex}
+      )`);
+      values.push(`%${keyword}%`);
+      paramIndex++;
+    }
+
+    if (category) {
+      conditions.push(`e.category ILIKE $${paramIndex}`);
+      values.push(`%${category}%`);
+      paramIndex++;
+    }
+
+    if (date) {
+      conditions.push(`e.event_date = $${paramIndex}`);
+      values.push(date);
+      paramIndex++;
+    }
+
+    if (location) {
+      conditions.push(`(
+        e.location_name ILIKE $${paramIndex}
+        OR e.location_address ILIKE $${paramIndex}
+        OR e.location_city ILIKE $${paramIndex}
+        OR e.location_state ILIKE $${paramIndex}
+        OR e.location_zip_code ILIKE $${paramIndex}
+      )`);
+      values.push(`%${location}%`);
+      paramIndex++;
+    }
+
+    const query = `
       SELECT
-        id,
-        organizer_id,
-        title,
-        event_description,
-        category,
-        event_date,
-        start_time,
-        end_time,
-        location_name,
-        location_address,
-        location_city,
-        location_state,
-        location_zip_code,
-        latitude,
-        longitude,
-        capacity,
-        approval_status,
-        is_free,
-        ticket_price,
-        schedule_notes,
-        calendar_link,
-        created_at,
-        updated_at
-      FROM events
-      WHERE approval_status = 'approved'
-      ORDER BY event_date ASC, start_time ASC
-      `
-    );
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.event_description,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.end_time,
+        e.location_name,
+        e.location_address,
+        e.location_city,
+        e.location_state,
+        e.location_zip_code,
+        e.latitude,
+        e.longitude,
+        e.capacity,
+        e.approval_status,
+        e.is_free,
+        e.ticket_price,
+        e.schedule_notes,
+        e.calendar_link,
+        e.created_at,
+        e.updated_at,
+        u.full_name AS organizer_name,
+        u.email AS organizer_email,
+        COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')::INT AS active_registration_count,
+        (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered'))::INT AS remaining_capacity,
+        (
+          (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')) <= 0
+        )::BOOLEAN AS is_full,
+        (
+          e.approval_status = 'approved'
+          AND
+          (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')) > 0
+        )::BOOLEAN AS can_register,
+        CONCAT_WS(
+          ', ',
+          e.location_name,
+          e.location_address,
+          e.location_city,
+          e.location_state,
+          e.location_zip_code
+        ) AS full_location
+      FROM events e
+      JOIN users u
+        ON e.organizer_id = u.id
+      LEFT JOIN registrations r
+        ON e.id = r.event_id
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY e.id, u.id
+      ORDER BY e.event_date ASC, e.start_time ASC
+    `;
+
+    const result = await pool.query(query, values);
 
     return successResponse(res, result.rows, "Events fetched successfully");
   } catch (error) {
@@ -76,34 +140,63 @@ async function getEventById(req, res, next) {
   try {
     const { id } = req.params;
 
+    if (!Number.isInteger(Number(id))) {
+      return errorResponse(res, 400, "Invalid event id");
+    }
+
     const result = await pool.query(
       `
       SELECT
-        id,
-        organizer_id,
-        title,
-        event_description,
-        category,
-        event_date,
-        start_time,
-        end_time,
-        location_name,
-        location_address,
-        location_city,
-        location_state,
-        location_zip_code,
-        latitude,
-        longitude,
-        capacity,
-        approval_status,
-        is_free,
-        ticket_price,
-        schedule_notes,
-        calendar_link,
-        created_at,
-        updated_at
-      FROM events
-      WHERE id = $1
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.event_description,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.end_time,
+        e.location_name,
+        e.location_address,
+        e.location_city,
+        e.location_state,
+        e.location_zip_code,
+        e.latitude,
+        e.longitude,
+        e.capacity,
+        e.approval_status,
+        e.is_free,
+        e.ticket_price,
+        e.schedule_notes,
+        e.calendar_link,
+        e.created_at,
+        e.updated_at,
+        u.full_name AS organizer_name,
+        u.email AS organizer_email,
+        COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')::INT AS active_registration_count,
+        (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered'))::INT AS remaining_capacity,
+        (
+          (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')) <= 0
+        )::BOOLEAN AS is_full,
+        (
+          e.approval_status = 'approved'
+          AND
+          (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')) > 0
+        )::BOOLEAN AS can_register,
+        CONCAT_WS(
+          ', ',
+          e.location_name,
+          e.location_address,
+          e.location_city,
+          e.location_state,
+          e.location_zip_code
+        ) AS full_location
+      FROM events e
+      JOIN users u
+        ON e.organizer_id = u.id
+      LEFT JOIN registrations r
+        ON e.id = r.event_id
+      WHERE e.id = $1 AND e.approval_status = 'approved'
+      GROUP BY e.id, u.id
       `,
       [id]
     );
@@ -329,7 +422,7 @@ async function updateEvent(req, res, next) {
         location_state ?? event.location_state,
         location_zip_code ?? event.location_zip_code,
         latitude ?? event.latitude,
-        longitude ?? event.longitutde,
+        longitude ?? event.longitude,
         updatedCapacity,
         updatedIsFree,
         updatedTicketPrice,
