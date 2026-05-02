@@ -138,15 +138,6 @@ async function getAllEvents(req, res, next) {
 
 async function getMyEvents(req, res, next) {
   try {
-    const { id } = req.params;
-
-    if (!Number.isInteger(Number(id))) {
-      return errorResponse(res, 400, "Invalid event id");
-    }
-
-    const result = await pool.query(
-      `
-      SELECT
     const userId = req.user.userId;
     const result = await pool.query(
       `
@@ -361,8 +352,10 @@ async function getEventById(req, res, next) {
         e.created_at,
         e.updated_at,
         u.full_name AS organizer_name,
+        u.full_name AS organizer_full_name,
         u.email AS organizer_email,
         COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')::INT AS active_registration_count,
+        COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')::INT AS registered_count,
         (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered'))::INT AS remaining_capacity,
         (
           (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')) <= 0
@@ -385,17 +378,8 @@ async function getEventById(req, res, next) {
         ON e.organizer_id = u.id
       LEFT JOIN registrations r
         ON e.id = r.event_id
-      WHERE e.id = $1 AND e.approval_status = 'approved'
-      GROUP BY e.id, u.id
-        (
-          SELECT COUNT(*)::int
-          FROM registrations r
-          WHERE r.event_id = e.id AND r.registration_status = 'registered'
-        ) AS registered_count,
-        u.full_name AS organizer_full_name
-      FROM events e
-      LEFT JOIN users u ON u.id = e.organizer_id
       WHERE e.id = $1
+      GROUP BY e.id, u.id
       `,
       [id]
     );
