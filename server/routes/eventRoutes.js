@@ -23,7 +23,7 @@ const {
   rejectEvent,
 } = require("../controllers/eventController");
 
-router.get("/", getAllEvents);
+router.get("/", authenticateTokenOptional, getAllEvents);
 router.get("/my-events", authenticateToken, authorizeRoles("organizer"), getMyEvents);
 router.get("/my-registrations", authenticateToken, authorizeRoles("attendee"), getMyRegisteredEvents);
 router.get("/pending", authenticateToken, authorizeRoles("admin"), getPendingEvents);

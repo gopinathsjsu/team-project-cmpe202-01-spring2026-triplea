@@ -38,9 +38,22 @@ async function getAllEvents(req, res, next) {
   try {
     const { keyword, category, date, location } = req.query;
 
-    const conditions = [`e.approval_status = 'approved'`];
+    const viewer = req.user && typeof req.user === "object" ? req.user : null;
+    const conditions = [];
     const values = [];
     let paramIndex = 1;
+
+    if (!viewer || typeof viewer.role !== "string") {
+      conditions.push(`e.approval_status = 'approved'`);
+    } else if (viewer.role === "admin") {
+      /* all events — no approval filter */
+    } else if (viewer.role === "organizer") {
+      conditions.push(`(e.approval_status = 'approved' OR e.organizer_id = $${paramIndex})`);
+      values.push(viewer.userId);
+      paramIndex++;
+    } else {
+      conditions.push(`e.approval_status = 'approved'`);
+    }
 
     if (keyword) {
       conditions.push(`(
@@ -126,7 +139,7 @@ async function getAllEvents(req, res, next) {
         ON e.organizer_id = u.id
       LEFT JOIN registrations r
         ON e.id = r.event_id
-      WHERE ${conditions.join(" AND ")}
+      WHERE ${conditions.length > 0 ? conditions.join(" AND ") : "TRUE"}
       GROUP BY e.id, u.id
       ORDER BY e.event_date ASC, e.start_time ASC
     `;

@@ -20,21 +20,25 @@ function authenticateToken(req, res, next) {
   }
 }
 
-/** Sets req.optionalUser when a valid Bearer token is present; otherwise null (no error). */
+/** Sets req.optionalUser and req.user when Bearer token is valid; otherwise null / undefined (no error). */
 function authenticateTokenOptional(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     req.optionalUser = null;
+    req.user = undefined;
     return next();
   }
 
   const token = authHeader.split(" ")[1];
 
   try {
-    req.optionalUser = verifyToken(token);
+    const decoded = verifyToken(token);
+    req.optionalUser = decoded;
+    req.user = decoded;
   } catch (error) {
     req.optionalUser = null;
+    req.user = undefined;
   }
   return next();
 }
