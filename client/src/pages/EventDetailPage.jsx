@@ -1,44 +1,348 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
+import { approveEventById, deleteEventById, getEventAttendees, getEventById } from "../services/eventService";
+import { decodeJwtPayload } from "../utils/decodeJwtPayload";
+import { formatDisplayDate } from "../utils/formatDisplayDate";
+
+function isEventNotFoundMessage(message) {
+  if (message == null || typeof message !== "string") {
+    return false;
+  }
+  return message.trim().replace(/\.$/, "").toLowerCase() === "event not found";
+}
 
 export default function EventDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [event, setEvent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [attendees, setAttendees] = useState([]);
+  const [attendeesLoading, setAttendeesLoading] = useState(false);
+  const [attendeesError, setAttendeesError] = useState("");
+
+  const goToEventsWithNotFoundNotice = useCallback(() => {
+    window.alert("Event not found");
+    navigate("/events", { replace: true });
+  }, [navigate]);
+
+  const reloadEvent = useCallback(async () => {
+    if (!id) {
+      return;
+    }
+    try {
+      const response = await getEventById(id);
+      const data = response?.data;
+      if (response?.success && data != null) {
+        setEvent(data);
+      }
+    } catch (err) {
+      if (isEventNotFoundMessage(err?.message)) {
+        goToEventsWithNotFoundNotice();
+      }
+    }
+  }, [id, goToEventsWithNotFoundNotice]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      setEvent(null);
+
+      try {
+        const response = await getEventById(id);
+        if (cancelled) {
+          return;
+        }
+
+        const data = response?.data;
+        if (!response?.success || data == null) {
+          if (!cancelled) {
+            if (isEventNotFoundMessage(response?.message)) {
+              goToEventsWithNotFoundNotice();
+            } else {
+              setError(response?.message || "Something went wrong.");
+            }
+          }
+          return;
+        }
+        setEvent(data);
+      } catch (err) {
+        if (!cancelled) {
+          if (isEventNotFoundMessage(err?.message)) {
+            goToEventsWithNotFoundNotice();
+          } else {
+            setError(err?.message || "Something went wrong.");
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (id) {
+      load();
+    } else {
+      setLoading(false);
+      goToEventsWithNotFoundNotice();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, goToEventsWithNotFoundNotice]);
+
+  const decoded = decodeJwtPayload(localStorage.getItem("token"));
+  const isAdmin = decoded?.role === "admin";
+  const isOrganizerOwner =
+    decoded?.role === "organizer" &&
+    Number(decoded?.userId) === Number(event?.organizer_id);
+  const canSeeAttendees = isAdmin || isOrganizerOwner;
+
+  useEffect(() => {
+    if (!event?.id || !canSeeAttendees) {
+      setAttendees([]);
+      setAttendeesLoading(false);
+      setAttendeesError("");
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setAttendees([]);
+      setAttendeesLoading(false);
+      setAttendeesError("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setAttendeesLoading(true);
+      setAttendeesError("");
+      try {
+        const res = await getEventAttendees(event.id, token);
+        if (!cancelled) {
+          setAttendees(Array.isArray(res?.data) ? res.data : []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setAttendees([]);
+          setAttendeesError(err?.message || "Failed to load attendee list");
+        }
+      } finally {
+        if (!cancelled) {
+          setAttendeesLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [event?.id, canSeeAttendees]);
+
+  if (loading) {
+    return (
+      <main style={{ padding: "16px" }}>
+        <p>Loading event…</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main style={{ padding: "16px" }}>
+        <p style={{ color: "#b00020" }}>{error}</p>
+        <p>
+          <Link to="/events">← Back to events</Link>
+        </p>
+      </main>
+    );
+  }
+
+  if (!event) {
+    return (
+      <main style={{ padding: "16px" }}>
+        <p>No event data available.</p>
+        <p>
+          <Link to="/events">← Back to events</Link>
+        </p>
+      </main>
+    );
+  }
+
+  const formatPrice = () => {
+    if (event.is_free) {
+      return "Free";
+    }
+    const price = event.ticket_price != null ? String(event.ticket_price) : "—";
+    return `$${price}`;
+  };
+
+  const locationLines = [
+    event.location_name,
+    event.location_address,
+    [event.location_city, event.location_state, event.location_zip_code].filter(Boolean).join(", ") || null,
+  ].filter(Boolean);
+
+  const handleApproveEvent = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || !event?.id) {
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await approveEventById(event.id, token);
+      window.alert("Event approved successfully");
+      await reloadEvent();
+    } catch (err) {
+      window.alert(err?.message || "Failed to approve event");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    const token = localStorage.getItem("token");
+    if (!token || !event?.id) {
+      return;
+    }
+    const ok = window.confirm("Delete this event?");
+    if (!ok) {
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await deleteEventById(event.id, token);
+      window.alert("Event deleted successfully");
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      window.alert(err?.message || "Failed to delete event");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <main style={{ padding: "16px" }}>
+      <p style={{ marginBottom: "12px" }}>
+        <Link to="/events">← Back to events</Link>
+      </p>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "16px", alignItems: "start" }}>
         <section style={{ border: "1px solid #ddd", padding: "12px" }}>
-          <div style={{ border: "1px solid #ddd", padding: "8px", marginBottom: "12px", background: "#fff" }}>
-            <div style={{ height: "210px", background: "#f3f3f3" }} />
-          </div>
-          <h2 style={{ marginBottom: "6px" }}>Tech Conference 2025</h2>
-          <p style={{ marginTop: 0 }}>Sat, May 24, 2025 | 10:00 AM - 4:00 PM | Metro Toronto Convention Centre</p>
-          <h3>About</h3>
-          <p>Join industry leaders and innovators for a day of insightful talks and networking.</p>
-          <h3>Organizer</h3>
-          <p>Hosted by TechTalks.</p>
-          <h3>Attendees</h3>
-          <p>120 people are going.</p>
+          <h1 style={{ marginTop: 0, marginBottom: "8px" }}>{event.title || "Untitled event"}</h1>
+          {event.category ? (
+            <p style={{ marginTop: 0, color: "#555", fontSize: "14px" }}>Category: {event.category}</p>
+          ) : null}
+
+          <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>About</h2>
+          <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{event.event_description || "—"}</p>
+
+          <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>When</h2>
+          <ul style={{ margin: 0, paddingLeft: "20px" }}>
+            <li>Date: {formatDisplayDate(event.event_date)}</li>
+            <li>Starts: {event.start_time ?? "—"}</li>
+            <li>Ends: {event.end_time != null ? event.end_time : "—"}</li>
+          </ul>
+
+          {event.schedule_notes ? (
+            <>
+              <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>Schedule notes</h2>
+              <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{event.schedule_notes}</p>
+            </>
+          ) : null}
+
+          <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>Organizer</h2>
+          <p style={{ marginTop: 0 }}>
+            {event.organizer_full_name?.trim() ? event.organizer_full_name : "—"}
+          </p>
+
+          {canSeeAttendees ? (
+            <section style={{ marginTop: "14px", borderTop: "1px solid #eee", paddingTop: "10px" }}>
+              <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>RSVP attendees</h2>
+              {attendeesLoading ? <p style={{ marginTop: 0 }}>Loading attendee list…</p> : null}
+              {attendeesError ? <p style={{ marginTop: 0, color: "#b00020" }}>{attendeesError}</p> : null}
+              {!attendeesLoading && !attendeesError ? (
+                attendees.length === 0 ? (
+                  <p style={{ marginTop: 0, color: "#666" }}>No attendees yet.</p>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: "18px", display: "grid", gap: "6px" }}>
+                    {attendees.map((user) => (
+                      <li key={user.id}>
+                        <span>{user.full_name || "Unknown attendee"}</span>
+                        <span style={{ color: "#555" }}> ({user.email || "no email"})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : null}
+            </section>
+          ) : null}
         </section>
 
         <aside style={{ border: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
-          <h3>FREE</h3>
-          <p>Spots left: 42 / 100</p>
-          <RSVPButton />
-          <button type="button" style={{ marginTop: "8px", width: "100%" }}>
+          <h2 style={{ fontSize: "16px", marginTop: 0 }}>Location</h2>
+          {locationLines.length > 0 ? (
+            locationLines.map((line, index) => (
+              <p key={`${index}-${line}`} style={{ margin: "0 0 4px 0" }}>
+                {line}
+              </p>
+            ))
+          ) : (
+            <p style={{ marginTop: 0 }}>Location TBD</p>
+          )}
+
+          <hr style={{ margin: "12px 0" }} />
+
+          <p style={{ margin: "0 0 4px 0" }}>
+            <strong>Capacity limit:</strong> {event.capacity ?? "—"}
+          </p>
+          <p style={{ margin: "0 0 4px 0" }}>
+            <strong>Registered Count:</strong>{" "}
+            {event.registered_count != null ? String(event.registered_count) : "—"}
+          </p>
+          <p style={{ margin: "0 0 4px 0" }}>
+            <strong>Pricing:</strong> {formatPrice()}
+          </p>
+          <p style={{ margin: "0 0 12px 0" }}>
+            <strong>Status:</strong> {event.approval_status ?? "—"}
+          </p>
+
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={handleApproveEvent}
+              disabled={deleteLoading || event.approval_status === "approved"}
+              style={{ width: "100%", padding: "8px" }}
+            >
+              {event.approval_status === "approved" ? "Approved" : deleteLoading ? "Approving..." : "Approve"}
+            </button>
+          ) : (
+            <RSVPButton
+              eventId={event.id}
+              capacityLimit={event.capacity}
+              registeredCount={event.registered_count}
+              onSuccess={reloadEvent}
+            />
+          )}
+          {isOrganizerOwner || isAdmin ? (
+            <button
+              type="button"
+              onClick={handleDeleteEvent}
+              disabled={deleteLoading}
+              style={{ marginTop: "8px", width: "100%", padding: "8px" }}
+            >
+              {deleteLoading ? "Deleting..." : "Delete Event"}
+            </button>
+          ) : null}
+          <button type="button" style={{ marginTop: "8px", width: "100%", padding: "8px" }}>
             Add to Calendar
           </button>
-          <hr style={{ margin: "12px 0" }} />
-          <p style={{ marginBottom: "8px" }}>Share this event</p>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-            <button type="button">f</button>
-            <button type="button">x</button>
-            <button type="button">in</button>
-          </div>
-          <p style={{ marginBottom: "6px" }}>People going</p>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#ddd", display: "inline-block" }} />
-            <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#ddd", display: "inline-block" }} />
-            <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#ddd", display: "inline-block" }} />
-            <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#ddd", display: "inline-block" }} />
-          </div>
         </aside>
       </div>
     </main>

@@ -136,13 +136,203 @@ async function getAllEvents(req, res, next) {
   }
 }
 
-async function getEventById(req, res, next) {
+async function getMyEvents(req, res, next) {
   try {
     const { id } = req.params;
 
     if (!Number.isInteger(Number(id))) {
       return errorResponse(res, 400, "Invalid event id");
     }
+
+    const result = await pool.query(
+      `
+      SELECT
+    const userId = req.user.userId;
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        organizer_id,
+        title,
+        event_description,
+        category,
+        event_date,
+        start_time,
+        end_time,
+        location_name,
+        location_address,
+        location_city,
+        location_state,
+        location_zip_code,
+        latitude,
+        longitude,
+        capacity,
+        approval_status,
+        is_free,
+        ticket_price,
+        schedule_notes,
+        calendar_link,
+        created_at,
+        updated_at
+      FROM events
+      WHERE organizer_id = $1
+      ORDER BY event_date ASC, start_time ASC
+      `,
+      [userId]
+    );
+
+    return successResponse(res, result.rows, "My events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getMyRegisteredEvents(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.event_description,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.end_time,
+        e.location_name,
+        e.location_address,
+        e.location_city,
+        e.location_state,
+        e.location_zip_code,
+        e.latitude,
+        e.longitude,
+        e.capacity,
+        e.approval_status,
+        e.is_free,
+        e.ticket_price,
+        e.schedule_notes,
+        e.calendar_link,
+        e.created_at,
+        e.updated_at
+      FROM events e
+      INNER JOIN registrations r ON r.event_id = e.id
+      WHERE r.user_id = $1 AND r.registration_status = 'registered'
+      ORDER BY e.event_date ASC, e.start_time ASC
+      `,
+      [userId]
+    );
+
+    return successResponse(res, result.rows, "My registered events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getPendingEvents(req, res, next) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.location_name,
+        e.approval_status,
+        e.created_at,
+        u.full_name AS organizer_full_name
+      FROM events e
+      LEFT JOIN users u ON u.id = e.organizer_id
+      WHERE e.approval_status = 'pending'
+      ORDER BY e.created_at DESC
+      `
+    );
+
+    return successResponse(res, result.rows, "Pending events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getAllEventsForAdmin(req, res, next) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.location_name,
+        e.approval_status,
+        e.created_at,
+        u.full_name AS organizer_full_name
+      FROM events e
+      LEFT JOIN users u ON u.id = e.organizer_id
+      ORDER BY e.created_at DESC
+      `
+    );
+
+    return successResponse(res, result.rows, "All events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getEventAttendees(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const requester = req.user;
+
+    const eventResult = await pool.query(
+      `SELECT id, organizer_id FROM events WHERE id = $1`,
+      [eventId]
+    );
+
+    if (eventResult.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const event = eventResult.rows[0];
+    const isAdmin = requester?.role === "admin";
+    const isOwnerOrganizer =
+      requester?.role === "organizer" &&
+      Number(requester?.userId) === Number(event.organizer_id);
+
+    if (!isAdmin && !isOwnerOrganizer) {
+      return errorResponse(res, 403, "Forbidden: insufficient permissions");
+    }
+
+    const attendeesResult = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.full_name,
+        u.email,
+        r.registered_at
+      FROM registrations r
+      INNER JOIN users u ON u.id = r.user_id
+      WHERE r.event_id = $1 AND r.registration_status = 'registered'
+      ORDER BY r.registered_at ASC
+      `,
+      [eventId]
+    );
+
+    return successResponse(res, attendeesResult.rows, "Event attendees fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getEventById(req, res, next) {
+  try {
+    const { id } = req.params;
 
     const result = await pool.query(
       `
@@ -197,6 +387,15 @@ async function getEventById(req, res, next) {
         ON e.id = r.event_id
       WHERE e.id = $1 AND e.approval_status = 'approved'
       GROUP BY e.id, u.id
+        (
+          SELECT COUNT(*)::int
+          FROM registrations r
+          WHERE r.event_id = e.id AND r.registration_status = 'registered'
+        ) AS registered_count,
+        u.full_name AS organizer_full_name
+      FROM events e
+      LEFT JOIN users u ON u.id = e.organizer_id
+      WHERE e.id = $1
       `,
       [id]
     );
@@ -238,7 +437,15 @@ async function createEvent(req, res, next) {
       calendar_link,
     } = req.body;
 
-    if (!title || !event_description || !event_date || !start_time || !capacity) {
+    if (
+      !title ||
+      !event_description ||
+      !event_date ||
+      !start_time ||
+      capacity === undefined ||
+      capacity === null ||
+      String(capacity).trim() === ""
+    ) {
       return errorResponse(
         res,
         400,
@@ -462,10 +669,198 @@ async function deleteEvent(req, res, next) {
   }
 }
 
+async function registerForEvent(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const userId = req.user.userId;
+
+    const eventResult = await pool.query(`SELECT id, capacity FROM events WHERE id = $1`, [eventId]);
+    if (eventResult.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const existingRegistration = await pool.query(
+      `SELECT id, registration_status FROM registrations WHERE user_id = $1 AND event_id = $2`,
+      [userId, eventId]
+    );
+
+    const existingRow = existingRegistration.rows[0];
+
+    const activeRegistrationCountResult = await pool.query(
+      `
+      SELECT COUNT(*) AS active_count
+      FROM registrations
+      WHERE event_id = $1 AND registration_status = 'registered'
+      `,
+      [eventId]
+    );
+
+    const activeRegistrationCount = Number(activeRegistrationCountResult.rows[0].active_count);
+    const eventCapacity = Number(eventResult.rows[0].capacity);
+
+    if (existingRow && existingRow.registration_status === "registered") {
+      return errorResponse(res, 409, "User is already registered for this event");
+    }
+
+    if (activeRegistrationCount >= eventCapacity) {
+      return errorResponse(res, 400, "Event capacity has been reached");
+    }
+
+    if (existingRow) {
+      const revivedResult = await pool.query(
+        `
+        UPDATE registrations
+        SET
+          registration_status = 'registered',
+          cancelled_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1 AND event_id = $2
+        RETURNING *
+        `,
+        [userId, eventId]
+      );
+
+      return successResponse(res, revivedResult.rows[0], "RSVP registration successful", 200);
+    }
+
+    const registrationResult = await pool.query(
+      `
+      INSERT INTO registrations (user_id, event_id)
+      VALUES ($1, $2)
+      RETURNING *
+      `,
+      [userId, eventId]
+    );
+
+    return successResponse(
+      res,
+      registrationResult.rows[0],
+      "RSVP registration successful",
+      201
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getMyRsvpStatus(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const userId = req.user.userId;
+
+    const eventExists = await pool.query(`SELECT id FROM events WHERE id = $1`, [eventId]);
+    if (eventExists.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const registration = await pool.query(
+      `
+      SELECT id
+      FROM registrations
+      WHERE user_id = $1 AND event_id = $2 AND registration_status = 'registered'
+      `,
+      [userId, eventId]
+    );
+
+    const registered = registration.rows.length > 0;
+    return successResponse(res, { registered }, "RSVP status fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function unregisterFromEvent(req, res, next) {
+  try {
+    const { id: eventId } = req.params;
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      `
+      UPDATE registrations
+      SET
+        registration_status = 'cancelled',
+        cancelled_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1 AND event_id = $2 AND registration_status = 'registered'
+      RETURNING id
+      `,
+      [userId, eventId]
+    );
+
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, "No active registration found for this event");
+    }
+
+    return successResponse(res, null, "Unregistered successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function approveEvent(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const existing = await pool.query(`SELECT id FROM events WHERE id = $1`, [id]);
+    if (existing.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE events
+      SET approval_status = 'approved', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id]
+    );
+
+    return successResponse(res, result.rows[0], "Event approved successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function rejectEvent(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const existing = await pool.query(`SELECT id FROM events WHERE id = $1`, [id]);
+    if (existing.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE events
+      SET approval_status = 'rejected', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id]
+    );
+
+    return successResponse(res, result.rows[0], "Event rejected successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getAllEvents,
+  getMyEvents,
+  getMyRegisteredEvents,
+  getPendingEvents,
+  getAllEventsForAdmin,
+  getEventAttendees,
   getEventById,
   createEvent,
   updateEvent,
   deleteEvent,
+  registerForEvent,
+  getMyRsvpStatus,
+  unregisterFromEvent,
+  approveEvent,
+  rejectEvent,
 };

@@ -1,14 +1,12 @@
 const { verifyToken } = require("../utils/jwtUtils");
+const { errorResponse } = require("../utils/responseHandler");
 
 // Protect routes by validating Bearer access tokens.
 function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      success: false,
-      message: "Access token is missing",
-    });
+    return errorResponse(res, 401, "Unauthorized");
   }
 
   const token = authHeader.split(" ")[1];
@@ -18,10 +16,7 @@ function authenticateToken(req, res, next) {
     req.user = decoded;
     return next();
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
+    return errorResponse(res, 401, "Unauthorized");
   }
 }
 
