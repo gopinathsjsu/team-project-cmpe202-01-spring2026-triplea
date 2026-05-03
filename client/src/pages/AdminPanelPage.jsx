@@ -1,34 +1,50 @@
 export default function AdminPanelPage() {
   return (
-    <main style={{ display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 56px)" }}>
-      <aside style={{ borderRight: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
-        <h3>EventHub Admin</h3>
-        <p>Dashboard</p>
-        <p>Events</p>
-        <p>Approvals</p>
-        <p>Users</p>
-        <p>Reports</p>
-        <p>Categories</p>
-        <p>Settings</p>
+    <main className="dash-layout">
+      <aside className="dash-sidebar">
+        <h3>Admin</h3>
+        <p className="dash-nav-title">Menu</p>
+        <p>
+          <a href="#top">Dashboard</a>
+        </p>
+        <p>
+          <a href="#top">Events</a>
+        </p>
+        <p>
+          <a href="#top">Approvals</a>
+        </p>
+        <p>
+          <a href="#top">Users</a>
+        </p>
+        <p>
+          <a href="#top">Settings</a>
+        </p>
       </aside>
 
-      <section style={{ padding: "16px", display: "grid", gap: "12px" }}>
-        <h2>Event Approvals</h2>
-        <p style={{ margin: 0 }}>Review and moderate organizer submissions.</p>
-        <div style={{ border: "1px solid #ddd", padding: "10px", display: "flex", gap: "8px", alignItems: "center" }}>
-          <button type="button">Pending</button>
-          <button type="button">Approved</button>
-          <button type="button">Rejected</button>
-          <input type="text" placeholder="Search events..." style={{ marginLeft: "auto", padding: "6px" }} />
-          <select style={{ padding: "6px" }}>
-            <option>Pending</option>
-            <option>Approved</option>
-            <option>Rejected</option>
-          </select>
-        </div>
+      <section className="dash-content" id="top">
+        <h1 className="page-title">Event approvals</h1>
+        <p className="page-lede">Review and moderate organizer submissions. (Wireframe — connect to live data as needed.)</p>
 
-        <div style={{ border: "1px solid #ddd" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "8px", padding: "10px", borderBottom: "1px solid #ddd", fontWeight: 600 }}>
+        <div className="card" style={{ overflow: "hidden" }}>
+          <div className="admin-toolbar">
+            <button type="button" className="btn btn-secondary">
+              Pending
+            </button>
+            <button type="button" className="btn btn-ghost">
+              Approved
+            </button>
+            <button type="button" className="btn btn-ghost">
+              Rejected
+            </button>
+            <input type="text" className="search-input" placeholder="Search events…" style={{ maxWidth: "220px", marginLeft: "auto" }} />
+            <select className="select" style={{ maxWidth: "140px" }}>
+              <option>Pending</option>
+              <option>Approved</option>
+              <option>Rejected</option>
+            </select>
+          </div>
+
+          <div className="admin-table-head">
             <div>Event</div>
             <div>Organizer</div>
             <div>Date</div>
@@ -36,23 +52,37 @@ export default function AdminPanelPage() {
             <div>Action</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "8px", padding: "10px", borderBottom: "1px solid #eee" }}>
-            <div>Night of Jazz</div>
+          <div className="admin-table-row">
+            <div>
+              <strong>Night of Jazz</strong>
+            </div>
             <div>Jazz Club</div>
             <div>May 20</div>
             <div>Pending</div>
-            <div>
-              <button type="button">Approve</button> <button type="button">Reject</button>
+            <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              <button type="button" className="btn btn-primary" style={{ padding: "0.35rem 0.65rem", fontSize: "0.8125rem" }}>
+                Approve
+              </button>
+              <button type="button" className="btn btn-secondary" style={{ padding: "0.35rem 0.65rem", fontSize: "0.8125rem" }}>
+                Reject
+              </button>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "8px", padding: "10px" }}>
-            <div>Hackathon Summit</div>
+          <div className="admin-table-row">
+            <div>
+              <strong>Hackathon Summit</strong>
+            </div>
             <div>CodeLab</div>
             <div>Jun 01</div>
             <div>Pending</div>
-            <div>
-              <button type="button">Approve</button> <button type="button">Reject</button>
+            <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              <button type="button" className="btn btn-primary" style={{ padding: "0.35rem 0.65rem", fontSize: "0.8125rem" }}>
+                Approve
+              </button>
+              <button type="button" className="btn btn-secondary" style={{ padding: "0.35rem 0.65rem", fontSize: "0.8125rem" }}>
+                Reject
+              </button>
             </div>
           </div>
         </div>

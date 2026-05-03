@@ -164,18 +164,18 @@ export default function EventDetailPage() {
 
   if (loading) {
     return (
-      <main style={{ padding: "16px" }}>
-        <p>Loading event…</p>
+      <main className="page">
+        <p className="text-muted loading-shimmer">Loading event…</p>
       </main>
     );
   }
 
   if (error) {
     return (
-      <main style={{ padding: "16px" }}>
-        <p style={{ color: "#b00020" }}>{error}</p>
+      <main className="page">
+        <p className="text-error">{error}</p>
         <p>
-          <Link to="/events">← Back to events</Link>
+          <Link to="/events">← Back to current events</Link>
         </p>
       </main>
     );
@@ -183,10 +183,10 @@ export default function EventDetailPage() {
 
   if (!event) {
     return (
-      <main style={{ padding: "16px" }}>
+      <main className="page">
         <p>No event data available.</p>
         <p>
-          <Link to="/events">← Back to events</Link>
+          <Link to="/events">← Back to current events</Link>
         </p>
       </main>
     );
@@ -269,23 +269,25 @@ export default function EventDetailPage() {
   };
 
   return (
-    <main style={{ padding: "16px" }}>
-      <p style={{ marginBottom: "12px" }}>
-        <Link to="/events">← Back to events</Link>
-      </p>
+    <main className="page">
+      <Link to="/events" className="back-link">
+        ← Back to current events
+      </Link>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "16px", alignItems: "start" }}>
-        <section style={{ border: "1px solid #ddd", padding: "12px" }}>
-          <h1 style={{ marginTop: 0, marginBottom: "8px" }}>{event.title || "Untitled event"}</h1>
+      <div className="detail-layout">
+        <section className="card card-pad-lg detail-main">
+          <h1>{event.title || "Untitled event"}</h1>
           {event.category ? (
-            <p style={{ marginTop: 0, color: "#555", fontSize: "14px" }}>Category: {event.category}</p>
+            <p className="page-lede" style={{ marginBottom: "1rem" }}>
+              {event.category}
+            </p>
           ) : null}
 
-          <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>About</h2>
-          <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{event.event_description || "—"}</p>
+          <div className="detail-section-title">About</div>
+          <p style={{ whiteSpace: "pre-wrap" }}>{event.event_description || "—"}</p>
 
-          <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>When</h2>
-          <ul style={{ margin: 0, paddingLeft: "20px" }}>
+          <div className="detail-section-title">When</div>
+          <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
             <li>Date: {formatDisplayDate(event.event_date)}</li>
             <li>Starts: {event.start_time ?? "—"}</li>
             <li>Ends: {event.end_time != null ? event.end_time : "—"}</li>
@@ -293,30 +295,28 @@ export default function EventDetailPage() {
 
           {event.schedule_notes ? (
             <>
-              <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>Schedule notes</h2>
-              <p style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>{event.schedule_notes}</p>
+              <div className="detail-section-title">Schedule notes</div>
+              <p style={{ whiteSpace: "pre-wrap" }}>{event.schedule_notes}</p>
             </>
           ) : null}
 
-          <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>Organizer</h2>
-          <p style={{ marginTop: 0 }}>
-            {event.organizer_full_name?.trim() ? event.organizer_full_name : "—"}
-          </p>
+          <div className="detail-section-title">Organizer</div>
+          <p style={{ marginBottom: 0 }}>{event.organizer_full_name?.trim() ? event.organizer_full_name : "—"}</p>
 
           {canSeeAttendees ? (
-            <section style={{ marginTop: "14px", borderTop: "1px solid #eee", paddingTop: "10px" }}>
-              <h2 style={{ fontSize: "16px", marginBottom: "6px" }}>RSVP attendees</h2>
-              {attendeesLoading ? <p style={{ marginTop: 0 }}>Loading attendee list…</p> : null}
-              {attendeesError ? <p style={{ marginTop: 0, color: "#b00020" }}>{attendeesError}</p> : null}
+            <section style={{ marginTop: "1.25rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+              <div className="detail-section-title">RSVP attendees</div>
+              {attendeesLoading ? <p className="text-muted">Loading attendee list…</p> : null}
+              {attendeesError ? <p className="text-error">{attendeesError}</p> : null}
               {!attendeesLoading && !attendeesError ? (
                 attendees.length === 0 ? (
-                  <p style={{ marginTop: 0, color: "#666" }}>No attendees yet.</p>
+                  <p className="text-muted">No attendees yet.</p>
                 ) : (
-                  <ul style={{ margin: 0, paddingLeft: "18px", display: "grid", gap: "6px" }}>
+                  <ul style={{ margin: 0, paddingLeft: "1.25rem", display: "grid", gap: "0.35rem" }}>
                     {attendees.map((user) => (
                       <li key={user.id}>
                         <span>{user.full_name || "Unknown attendee"}</span>
-                        <span style={{ color: "#555" }}> ({user.email || "no email"})</span>
+                        <span className="text-muted"> ({user.email || "no email"})</span>
                       </li>
                     ))}
                   </ul>
@@ -326,57 +326,49 @@ export default function EventDetailPage() {
           ) : null}
         </section>
 
-        <aside style={{ border: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
-          <h2 style={{ fontSize: "16px", marginTop: 0 }}>Location</h2>
+        <aside className="card card-pad detail-aside">
+          <h2>Location</h2>
           {locationLines.length > 0 ? (
             locationLines.map((line, index) => (
-              <p key={`${index}-${line}`} style={{ margin: "0 0 4px 0" }}>
+              <p key={`${index}-${line}`} style={{ margin: "0 0 0.25rem" }}>
                 {line}
               </p>
             ))
           ) : (
-            <p style={{ marginTop: 0 }}>Location TBD</p>
+            <p className="text-muted" style={{ marginTop: 0 }}>
+              Location TBD
+            </p>
           )}
 
-          <hr style={{ margin: "12px 0" }} />
+          <hr className="divider" />
 
-          <p style={{ margin: "0 0 4px 0" }}>
-            <strong>Capacity limit:</strong> {event.capacity ?? "—"}
+          <p style={{ margin: "0 0 0.35rem" }}>
+            <strong>Capacity</strong> {event.capacity ?? "—"}
           </p>
-          <p style={{ margin: "0 0 4px 0" }}>
-            <strong>Registered Count:</strong>{" "}
-            {event.registered_count != null ? String(event.registered_count) : "—"}
+          <p style={{ margin: "0 0 0.35rem" }}>
+            <strong>Registered</strong> {event.registered_count != null ? String(event.registered_count) : "—"}
           </p>
-          <p style={{ margin: "0 0 4px 0" }}>
-            <strong>Pricing:</strong> {formatPrice()}
+          <p style={{ margin: "0 0 0.35rem" }}>
+            <strong>Price</strong> {formatPrice()}
           </p>
-          {(isAdmin || !isOrganizerOwner) ? (
-            <p style={{ margin: "0 0 12px 0" }}>
-              <strong>Status:</strong> {event.approval_status ?? "—"}
+          {isAdmin || !isOrganizerOwner ? (
+            <p style={{ margin: "0 0 0.75rem" }}>
+              <strong>Status</strong> {event.approval_status ?? "—"}
             </p>
           ) : null}
           {isAdmin && event.approval_status === "rejected" && event.rejection_reason?.trim() ? (
-            <p
-              style={{
-                margin: "0 0 12px 0",
-                padding: "8px 10px",
-                background: "#fff8f8",
-                border: "1px solid #f0c4c4",
-                fontSize: "13px",
-                whiteSpace: "pre-wrap",
-              }}
-            >
+            <p className="callout callout--warn" style={{ margin: "0 0 0.75rem", whiteSpace: "pre-wrap", fontSize: "0.8125rem" }}>
               <strong>Rejection reason:</strong> {event.rejection_reason.trim()}
             </p>
           ) : null}
 
           {isAdmin ? (
-            <div style={{ display: "grid", gap: "8px" }}>
+            <div className="detail-actions">
               <button
                 type="button"
+                className="btn btn-primary btn-block"
                 onClick={handleApproveEvent}
                 disabled={deleteLoading || event.approval_status === "approved" || event.approval_status === "rejected"}
-                style={{ width: "100%", padding: "8px" }}
               >
                 {event.approval_status === "approved"
                   ? "Approved"
@@ -387,50 +379,45 @@ export default function EventDetailPage() {
               {event.approval_status === "pending" && !rejectFormOpen ? (
                 <button
                   type="button"
+                  className="btn btn-secondary btn-block"
                   onClick={() => {
                     setRejectFormOpen(true);
                     setRejectDraft("");
                   }}
                   disabled={deleteLoading}
-                  style={{ width: "100%", padding: "8px" }}
                 >
                   Disapprove
                 </button>
               ) : null}
               {event.approval_status === "pending" && rejectFormOpen ? (
-                <div style={{ display: "grid", gap: "8px" }}>
-                  <label style={{ fontSize: "13px", fontWeight: 600 }}>Comment for organizer (required)</label>
+                <div className="detail-actions">
+                  <label className="label" style={{ fontSize: "0.8125rem" }}>
+                    Comment for organizer (required)
+                  </label>
                   <textarea
+                    className="input textarea"
                     value={rejectDraft}
                     onChange={(e) => setRejectDraft(e.target.value)}
                     rows={4}
                     placeholder="Briefly explain why this event was disapproved…"
                     disabled={deleteLoading}
-                    style={{
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "8px",
-                      fontSize: "14px",
-                      fontFamily: "inherit",
-                      resize: "vertical",
-                    }}
                   />
                   <button
                     type="button"
+                    className="btn btn-danger btn-block"
                     onClick={submitDisapproval}
                     disabled={deleteLoading}
-                    style={{ width: "100%", padding: "8px", fontWeight: 600 }}
                   >
-                    {deleteLoading ? "Submitting…" : "Submit Disapproval"}
+                    {deleteLoading ? "Submitting…" : "Submit disapproval"}
                   </button>
                   <button
                     type="button"
+                    className="btn btn-ghost btn-block"
                     disabled={deleteLoading}
                     onClick={() => {
                       setRejectFormOpen(false);
                       setRejectDraft("");
                     }}
-                    style={{ width: "100%", padding: "8px" }}
                   >
                     Cancel
                   </button>
@@ -438,31 +425,12 @@ export default function EventDetailPage() {
               ) : null}
             </div>
           ) : isOrganizerOwner ? (
-            <div style={{ margin: "0 0 12px 0", display: "grid", gap: "8px" }}>
-              <p
-                style={{
-                  margin: 0,
-                  padding: "10px 12px",
-                  background: "#f5f5f5",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
-                  fontSize: "15px",
-                }}
-              >
-                <strong>Status:</strong> {formatApprovalStatusLabel(event.approval_status)}
+            <div className="detail-actions" style={{ marginBottom: "0.75rem" }}>
+              <p className="callout callout--neutral" style={{ margin: 0, fontSize: "0.9375rem" }}>
+                <strong>Status</strong> {formatApprovalStatusLabel(event.approval_status)}
               </p>
               {event.approval_status === "rejected" && event.rejection_reason?.trim() ? (
-                <p
-                  style={{
-                    margin: 0,
-                    padding: "10px 12px",
-                    background: "#fff8f8",
-                    border: "1px solid #f0c4c4",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
+                <p className="callout callout--warn" style={{ margin: 0, fontSize: "0.875rem", whiteSpace: "pre-wrap" }}>
                   <strong>Why it was disapproved:</strong> {event.rejection_reason.trim()}
                 </p>
               ) : null}
@@ -478,15 +446,16 @@ export default function EventDetailPage() {
           {isOrganizerOwner || isAdmin ? (
             <button
               type="button"
+              className="btn btn-danger btn-block"
               onClick={handleDeleteEvent}
               disabled={deleteLoading}
-              style={{ marginTop: "8px", width: "100%", padding: "8px" }}
+              style={{ marginTop: "0.5rem" }}
             >
-              {deleteLoading ? "Deleting..." : "Delete Event"}
+              {deleteLoading ? "Deleting…" : "Delete event"}
             </button>
           ) : null}
-          <button type="button" style={{ marginTop: "8px", width: "100%", padding: "8px" }}>
-            Add to Calendar
+          <button type="button" className="btn btn-secondary btn-block" style={{ marginTop: "0.5rem" }}>
+            Add to calendar
           </button>
         </aside>
       </div>

@@ -12,42 +12,26 @@ export default function EventCard({
 }) {
   const inner = (
     <>
-      <div style={{ height: "48px", background: "#f3f3f3", marginBottom: "8px" }} />
-      <h4 style={{ margin: 0 }}>{title}</h4>
-      <p style={{ margin: "6px 0 0 0", fontSize: "13px" }}>Category: {category || "General"}</p>
-      <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>
-        {formatDisplayDate(event_date)} {start_time ? `at ${start_time}` : ""}
-      </p>
-      <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Location: {location_name || "TBA"}</p>
-      <p style={{ margin: "4px 0 0 0", fontSize: "13px" }}>Capacity: {capacity ?? "-"}</p>
+      <div className="event-card__thumb" aria-hidden />
+      <div className="event-card__body">
+        <h4 className="event-card__title">{title}</h4>
+        <p className="event-card__meta">Category: {category || "General"}</p>
+        <p className="event-card__meta">
+          {formatDisplayDate(event_date)} {start_time ? `at ${start_time}` : ""}
+        </p>
+        <p className="event-card__meta">Location: {location_name || "TBA"}</p>
+        <p className="event-card__meta">Capacity: {capacity ?? "-"}</p>
+      </div>
     </>
   );
 
   if (id == null) {
-    return (
-      <article style={{ border: "1px solid #ccc", padding: "10px", minHeight: "120px" }}>{inner}</article>
-    );
+    return <article className="event-card">{inner}</article>;
   }
 
   return (
-    <Link
-      to={`/events/${id}`}
-      style={{
-        textDecoration: "none",
-        color: "inherit",
-        display: "block",
-      }}
-    >
-      <article
-        style={{
-          border: "1px solid #ccc",
-          padding: "10px",
-          minHeight: "120px",
-          cursor: "pointer",
-        }}
-      >
-        {inner}
-      </article>
+    <Link to={`/events/${id}`} className="event-card">
+      {inner}
     </Link>
   );
 }

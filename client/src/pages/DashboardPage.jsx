@@ -226,33 +226,23 @@ export default function DashboardPage() {
   const renderEventRows = (list, options = {}) => {
     const { showRejectedReason = false } = options;
     if (list.length === 0) {
-      return <p style={{ marginTop: 0, color: "#666" }}>No events.</p>;
+      return <p className="text-muted">No events.</p>;
     }
     return (
-      <div style={{ display: "grid", gap: "8px" }}>
+      <div style={{ display: "grid", gap: "0.5rem" }}>
         {list.map((ev) => (
-          <Link
-            key={ev.id}
-            to={`/events/${ev.id}`}
-            style={{
-              display: "block",
-              border: "1px solid #eee",
-              padding: "10px",
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
+          <Link key={ev.id} to={`/events/${ev.id}`} className="dash-event-link">
             <strong>{ev.title || "Untitled event"}</strong>
-            <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#555" }}>
+            <p className="text-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8125rem" }}>
               {formatDisplayDate(ev.event_date)}
               {ev.start_time ? ` · ${ev.start_time}` : ""}
               {ev.location_name ? ` · ${ev.location_name}` : ""}
             </p>
-            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
+            <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
               Approval: {ev.approval_status ?? "—"}
             </p>
             {showRejectedReason && ev.approval_status === "rejected" && ev.rejection_reason?.trim() ? (
-              <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#7a1515", whiteSpace: "pre-wrap" }}>
+              <p className="text-error" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
                 <strong>Admin note:</strong> {ev.rejection_reason.trim()}
               </p>
             ) : null}
@@ -265,8 +255,8 @@ export default function DashboardPage() {
   if (isOrganizer) {
     const { upcoming, past } = createdSplit;
     return (
-      <main style={{ display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 56px)" }}>
-        <aside style={{ borderRight: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
+      <main className="dash-layout">
+        <aside className="dash-sidebar">
           <h3 style={{ marginTop: 0 }}>Dashboard</h3>
           <p style={{ margin: "8px 0", fontWeight: 600 }}>Overview</p>
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
@@ -291,55 +281,58 @@ export default function DashboardPage() {
           </p>
         </aside>
 
-        <section style={{ padding: "16px", display: "grid", gap: "16px" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0 }}>Welcome back, {userName}!</h2>
-            <Link
-              to="/create-event"
-              style={{ border: "1px solid #bbb", padding: "8px 14px", textDecoration: "none", color: "inherit", fontSize: "14px" }}
-            >
-              Create Event
+        <section className="dash-content">
+          <div className="page-header">
+            <h1 className="page-title" style={{ fontSize: "1.35rem" }}>
+              Welcome back, {userName}!
+            </h1>
+            <Link to="/create-event" className="btn btn-primary">
+              Create event
             </Link>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "10px" }}>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Total events: {createdEvents.length}</div>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Pending: {organizerPendingEvents.length}</div>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Upcoming: {upcoming.length}</div>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Past: {past.length}</div>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Disapproved: {organizerDisapprovedEvents.length}</div>
+          <div className="dash-stat-grid dash-stat-grid--5">
+            <div className="dash-stat">Total events: {createdEvents.length}</div>
+            <div className="dash-stat">Pending: {organizerPendingEvents.length}</div>
+            <div className="dash-stat">Upcoming: {upcoming.length}</div>
+            <div className="dash-stat">Past: {past.length}</div>
+            <div className="dash-stat">Disapproved: {organizerDisapprovedEvents.length}</div>
           </div>
 
-          {createdLoading ? <p style={{ margin: 0 }}>Loading your events…</p> : null}
-          {createdError ? <p style={{ margin: 0, color: "#b00020" }}>{createdError}</p> : null}
+          {createdLoading ? <p className="text-muted">Loading your events…</p> : null}
+          {createdError ? <p className="text-error">{createdError}</p> : null}
 
-          <section id="my-pending" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>Pending events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
-              Waiting for an admin to approve or disapprove.
-            </p>
+          <section id="my-pending" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Pending events
+            </h3>
+            <p className="page-lede">Waiting for an admin to approve or disapprove.</p>
             {!createdLoading ? renderEventRows(organizerPendingEvents) : null}
           </section>
 
-          <section id="my-upcoming" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>Upcoming events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
+          <section id="my-upcoming" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Upcoming events
+            </h3>
+            <p className="page-lede">
               Approved events you created with today&apos;s date or later (RSVP opens after approval).
             </p>
             {!createdLoading ? renderEventRows(upcoming) : null}
           </section>
 
-          <section id="my-past" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>Past events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>Approved events you created before today.</p>
+          <section id="my-past" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Past events
+            </h3>
+            <p className="page-lede">Approved events you created before today.</p>
             {!createdLoading ? renderEventRows(past) : null}
           </section>
 
-          <section id="my-disapproved" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>Disapproved events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
-              Events an admin marked as rejected. They are hidden from the public event list.
-            </p>
+          <section id="my-disapproved" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Disapproved events
+            </h3>
+            <p className="page-lede">Events an admin marked as rejected. They are hidden from the public list.</p>
             {!createdLoading ? renderEventRows(organizerDisapprovedEvents, { showRejectedReason: true }) : null}
           </section>
         </section>
@@ -350,8 +343,8 @@ export default function DashboardPage() {
   if (isAttendee) {
     const { upcoming, past } = registeredSplit;
     return (
-      <main style={{ display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 56px)" }}>
-        <aside style={{ borderRight: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
+      <main className="dash-layout">
+        <aside className="dash-sidebar">
           <h3 style={{ marginTop: 0 }}>Dashboard</h3>
           <p style={{ margin: "8px 0", fontWeight: 600 }}>Your RSVPs</p>
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
@@ -361,36 +354,44 @@ export default function DashboardPage() {
           </p>
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
             <a href="#reg-past" style={{ color: "inherit" }}>
-              Past
+              Past events
             </a>
           </p>
           <p style={{ margin: "14px 0 0", fontSize: "14px" }}>
-            <Link to="/events">Browse more events</Link>
+            <Link to="/events">Browse current events</Link>
           </p>
         </aside>
 
-        <section style={{ padding: "16px", display: "grid", gap: "16px" }}>
-          <h2 style={{ margin: 0 }}>Welcome back, {userName}!</h2>
-          <p style={{ margin: 0, color: "#555" }}>Below are events you are currently registered for (active RSVPs).</p>
+        <section className="dash-content">
+          <h1 className="page-title" style={{ fontSize: "1.35rem" }}>
+            Welcome back, {userName}!
+          </h1>
+          <p className="page-lede">
+            Events you are registered for (active RSVPs). Past registrations are listed in Past events below.
+          </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" }}>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Total registrations: {registeredEvents.length}</div>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Upcoming: {upcoming.length}</div>
-            <div style={{ border: "1px solid #ddd", padding: "10px" }}>Past: {past.length}</div>
+          <div className="dash-stat-grid dash-stat-grid--3">
+            <div className="dash-stat">Registrations: {registeredEvents.length}</div>
+            <div className="dash-stat">Upcoming: {upcoming.length}</div>
+            <div className="dash-stat">Past: {past.length}</div>
           </div>
 
-          {registeredLoading ? <p style={{ margin: 0 }}>Loading your registrations…</p> : null}
-          {registeredError ? <p style={{ margin: 0, color: "#b00020" }}>{registeredError}</p> : null}
+          {registeredLoading ? <p className="text-muted">Loading your registrations…</p> : null}
+          {registeredError ? <p className="text-error">{registeredError}</p> : null}
 
-          <section id="reg-upcoming" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>Upcoming events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>Registered events dated today or later.</p>
+          <section id="reg-upcoming" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Upcoming events
+            </h3>
+            <p className="page-lede">Registered events dated today or later.</p>
             {!registeredLoading ? renderEventRows(upcoming) : null}
           </section>
 
-          <section id="reg-past" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>Past events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>Registered events dated before today.</p>
+          <section id="reg-past" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Past events
+            </h3>
+            <p className="page-lede">Registered events dated before today.</p>
             {!registeredLoading ? renderEventRows(past) : null}
           </section>
         </section>
@@ -473,8 +474,8 @@ export default function DashboardPage() {
     };
 
     return (
-      <main style={{ display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 56px)" }}>
-        <aside style={{ borderRight: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
+      <main className="dash-layout">
+        <aside className="dash-sidebar">
           <h3 style={{ marginTop: 0 }}>Admin</h3>
           <p style={{ margin: "8px 0", fontWeight: 600 }}>Dashboard</p>
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
@@ -489,104 +490,83 @@ export default function DashboardPage() {
           </p>
         </aside>
 
-        <section style={{ padding: "16px", display: "grid", gap: "16px" }}>
-          <h2 style={{ margin: 0 }}>Welcome back, {userName}!</h2>
-          <p style={{ margin: 0, color: "#555" }}>Here are events waiting for approval.</p>
+        <section className="dash-content">
+          <h1 className="page-title" style={{ fontSize: "1.35rem" }}>
+            Welcome back, {userName}!
+          </h1>
+          <p className="page-lede">Events waiting for your approval.</p>
 
-          <div style={{ border: "1px solid #ddd", padding: "12px" }}>
-            <h3 id="pending-events" style={{ marginTop: 0, scrollMarginTop: "12px" }}>
+          <div className="card card-pad dash-section">
+            <h3 id="pending-events" className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
               Pending events
             </h3>
-            {pendingLoading ? <p style={{ marginTop: 0 }}>Loading pending events…</p> : null}
-            {pendingError ? <p style={{ marginTop: 0, color: "#b00020" }}>{pendingError}</p> : null}
+            {pendingLoading ? <p className="text-muted">Loading pending events…</p> : null}
+            {pendingError ? <p className="text-error">{pendingError}</p> : null}
             {!pendingLoading && !pendingError ? (
               pendingEvents.length === 0 ? (
-                <p style={{ marginTop: 0, color: "#666" }}>No pending events.</p>
+                <p className="text-muted">No pending events.</p>
               ) : (
-                <div style={{ display: "grid", gap: "8px" }}>
+                <div style={{ display: "grid", gap: "0.5rem" }}>
                   {pendingEvents.map((ev) => (
-                    <div
-                      key={ev.id}
-                      style={{
-                        border: "1px solid #eee",
-                        padding: "10px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "10px",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "12px" }}>
+                    <div key={ev.id} className="dash-event-row">
+                      <div className="dash-event-row__top">
                         <Link to={`/events/${ev.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1 }}>
                           <strong>{ev.title || "Untitled event"}</strong>
-                          <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#555" }}>
+                          <p className="text-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8125rem" }}>
                             {formatDisplayDate(ev.event_date)}
                             {ev.start_time ? ` · ${ev.start_time}` : ""}
                             {ev.location_name ? ` · ${ev.location_name}` : ""}
                           </p>
-                          <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
+                          <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
                             Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
                           </p>
                         </Link>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", flexShrink: 0 }}>
-                          <button type="button" onClick={() => handleApprove(ev.id)} style={{ padding: "8px 10px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flexShrink: 0 }}>
+                          <button type="button" className="btn btn-primary" onClick={() => handleApprove(ev.id)}>
                             Approve
                           </button>
                           <button
                             type="button"
+                            className="btn btn-secondary"
                             onClick={() => {
                               setRejectingEventId(ev.id);
                               setRejectCommentDraft("");
                             }}
                             disabled={rejectSubmitting}
-                            style={{ padding: "8px 10px" }}
                           >
                             Disapprove
                           </button>
                         </div>
                       </div>
                       {rejectingEventId === ev.id ? (
-                        <div
-                          style={{
-                            paddingTop: "8px",
-                            borderTop: "1px solid #eee",
-                            display: "grid",
-                            gap: "8px",
-                          }}
-                        >
-                          <label style={{ fontSize: "13px", fontWeight: 600 }}>
+                        <div className="detail-actions" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
+                          <label className="label" style={{ fontSize: "0.8125rem" }}>
                             Comment for organizer (required)
                           </label>
                           <textarea
+                            className="input textarea"
                             value={rejectCommentDraft}
                             onChange={(e) => setRejectCommentDraft(e.target.value)}
                             rows={4}
                             placeholder="Briefly explain why this event was disapproved…"
-                            style={{
-                              width: "100%",
-                              boxSizing: "border-box",
-                              padding: "8px",
-                              fontSize: "14px",
-                              fontFamily: "inherit",
-                              resize: "vertical",
-                            }}
                           />
-                          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                             <button
                               type="button"
+                              className="btn btn-danger"
                               disabled={rejectSubmitting}
                               onClick={() => submitDisapprovalForEvent(ev.id)}
-                              style={{ padding: "8px 14px", fontWeight: 600 }}
                             >
-                              {rejectSubmitting ? "Submitting…" : "Submit Disapproval"}
+                              {rejectSubmitting ? "Submitting…" : "Submit disapproval"}
                             </button>
                             <button
                               type="button"
+                              className="btn btn-ghost"
                               disabled={rejectSubmitting}
                               onClick={() => {
                                 setRejectingEventId(null);
                                 setRejectCommentDraft("");
                               }}
-                              style={{ padding: "8px 14px" }}
                             >
                               Cancel
                             </button>
@@ -600,41 +580,31 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
-          <div id="disapproved-events-admin" style={{ border: "1px solid #ddd", padding: "12px", scrollMarginTop: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>Disapproved events</h3>
-            <p style={{ marginTop: 0, fontSize: "14px", color: "#555" }}>
-              Pending submissions that were rejected (disapproved).
-            </p>
-            {allAdminLoading ? <p style={{ marginTop: 0 }}>Loading…</p> : null}
-            {allAdminError ? <p style={{ marginTop: 0, color: "#b00020" }}>{allAdminError}</p> : null}
+          <div id="disapproved-events-admin" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Disapproved events
+            </h3>
+            <p className="page-lede">Submissions that were rejected.</p>
+            {allAdminLoading ? <p className="text-muted">Loading…</p> : null}
+            {allAdminError ? <p className="text-error">{allAdminError}</p> : null}
             {!allAdminLoading && !allAdminError ? (
               adminDisapprovedEvents.length === 0 ? (
-                <p style={{ marginTop: 0, color: "#666" }}>No disapproved events.</p>
+                <p className="text-muted">No disapproved events.</p>
               ) : (
-                <div style={{ display: "grid", gap: "8px" }}>
+                <div style={{ display: "grid", gap: "0.5rem" }}>
                   {adminDisapprovedEvents.map((ev) => (
-                    <Link
-                      key={`rej-${ev.id}`}
-                      to={`/events/${ev.id}`}
-                      style={{
-                        display: "block",
-                        border: "1px solid #eee",
-                        padding: "10px",
-                        textDecoration: "none",
-                        color: "inherit",
-                      }}
-                    >
+                    <Link key={`rej-${ev.id}`} to={`/events/${ev.id}`} className="dash-event-link">
                       <strong>{ev.title || "Untitled event"}</strong>
-                      <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#555" }}>
+                      <p className="text-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8125rem" }}>
                         {formatDisplayDate(ev.event_date)}
                         {ev.start_time ? ` · ${ev.start_time}` : ""}
                         {ev.location_name ? ` · ${ev.location_name}` : ""}
                       </p>
-                      <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
+                      <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
                         Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
                       </p>
                       {ev.rejection_reason?.trim() ? (
-                        <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#555", whiteSpace: "pre-wrap" }}>
+                        <p className="text-muted" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
                           <strong>Reason recorded:</strong> {ev.rejection_reason.trim()}
                         </p>
                       ) : null}
@@ -645,41 +615,35 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
-          <div style={{ border: "1px solid #ddd", padding: "12px" }}>
-            <h3 style={{ marginTop: 0 }}>All events</h3>
-            {allAdminLoading ? <p style={{ marginTop: 0 }}>Loading all events…</p> : null}
-            {allAdminError ? <p style={{ marginTop: 0, color: "#b00020" }}>{allAdminError}</p> : null}
+          <div className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              All events
+            </h3>
+            {allAdminLoading ? <p className="text-muted">Loading all events…</p> : null}
+            {allAdminError ? <p className="text-error">{allAdminError}</p> : null}
             {!allAdminLoading && !allAdminError ? (
               allAdminEvents.length === 0 ? (
-                <p style={{ marginTop: 0, color: "#666" }}>No events.</p>
+                <p className="text-muted">No events.</p>
               ) : (
-                <div style={{ display: "grid", gap: "8px" }}>
+                <div style={{ display: "grid", gap: "0.5rem" }}>
                   {allAdminEvents.map((ev) => (
-                    <div
-                      key={`all-${ev.id}`}
-                      style={{
-                        border: "1px solid #eee",
-                        padding: "10px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "start",
-                        gap: "12px",
-                      }}
-                    >
-                      <Link to={`/events/${ev.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1 }}>
-                        <strong>{ev.title || "Untitled event"}</strong>
-                        <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#555" }}>
-                          {formatDisplayDate(ev.event_date)}
-                          {ev.start_time ? ` · ${ev.start_time}` : ""}
-                          {ev.location_name ? ` · ${ev.location_name}` : ""}
-                        </p>
-                        <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#555" }}>
-                          Status: {ev.approval_status ?? "—"} · Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
-                        </p>
-                      </Link>
-                      <button type="button" onClick={() => handleDelete(ev.id)} style={{ padding: "8px 10px" }}>
-                        Delete
-                      </button>
+                    <div key={`all-${ev.id}`} className="dash-event-row">
+                      <div className="dash-event-row__top">
+                        <Link to={`/events/${ev.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1 }}>
+                          <strong>{ev.title || "Untitled event"}</strong>
+                          <p className="text-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8125rem" }}>
+                            {formatDisplayDate(ev.event_date)}
+                            {ev.start_time ? ` · ${ev.start_time}` : ""}
+                            {ev.location_name ? ` · ${ev.location_name}` : ""}
+                          </p>
+                          <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
+                            Status: {ev.approval_status ?? "—"} · Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
+                          </p>
+                        </Link>
+                        <button type="button" className="btn btn-danger" onClick={() => handleDelete(ev.id)}>
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -692,26 +656,30 @@ export default function DashboardPage() {
   }
 
   return (
-    <main style={{ display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 56px)" }}>
-      <aside style={{ borderRight: "1px solid #ddd", padding: "12px", background: "#fcfcfc" }}>
+    <main className="dash-layout">
+      <aside className="dash-sidebar">
         <h3>EventHub</h3>
         <p>Dashboard</p>
         <p>
           <Link to="/events" style={{ color: "inherit" }}>
-            Browse events
+            Browse current events
           </Link>
         </p>
         <p>Profile</p>
         <p>Settings</p>
       </aside>
 
-      <section style={{ padding: "16px", display: "grid", gap: "12px" }}>
-        <h2>Welcome back, {userName}!</h2>
-        <p style={{ margin: 0 }}>Explore public listings under Events.</p>
-        <section style={{ border: "1px solid #ddd", padding: "12px" }}>
-          <h3 style={{ marginTop: 0 }}>Explore</h3>
-          <p style={{ margin: 0, color: "#666" }}>
-            Open <Link to="/events">Events</Link>.
+      <section className="dash-content">
+        <h1 className="page-title" style={{ fontSize: "1.35rem" }}>
+          Welcome back, {userName}!
+        </h1>
+        <p className="page-lede">Browse and RSVP from the public event list.</p>
+        <section className="card card-pad">
+          <h3 className="page-title" style={{ fontSize: "1.05rem", marginBottom: "0.35rem" }}>
+            Explore
+          </h3>
+          <p className="page-lede" style={{ margin: 0 }}>
+            Open <Link to="/events">current events</Link> to get started.
           </p>
         </section>
       </section>
