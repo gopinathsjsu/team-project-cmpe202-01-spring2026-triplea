@@ -1,5 +1,9 @@
 const pool = require("../config/db");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
+const {
+  notifyRegistrationConfirmation,
+  notifyEventApprovalStatus,
+} = require("../utils/notificationService");
 
 const isValidEventDate = (eventDate) => {
   if (typeof eventDate !== "string") {
@@ -692,7 +696,15 @@ async function registerForEvent(req, res, next) {
     const { id: eventId } = req.params;
     const userId = req.user.userId;
 
-    const eventResult = await pool.query(`SELECT id, capacity, approval_status FROM events WHERE id = $1`, [eventId]);
+    const eventResult = await pool.query(
+      `
+      SELECT id, title, event_date, start_time, capacity, approval_status
+      FROM events
+      WHERE id = $1
+      `,
+      [eventId]
+    );
+    
     if (eventResult.rows.length === 0) {
       return errorResponse(res, 404, "Event not found");
     }
@@ -742,6 +754,20 @@ async function registerForEvent(req, res, next) {
         [userId, eventId]
       );
 
+      const attendeeResult = await pool.query(
+        `SELECT id, full_name, email FROM users WHERE id = $1`,
+        [userId]
+      );
+      
+      try {
+        await notifyRegistrationConfirmation({
+          attendee: attendeeResult.rows[0],
+          event: eventResult.rows[0],
+        });
+      } catch (notificationError) {
+        console.error("Registration notification failed:", notificationError.message)
+      }
+      
       return successResponse(res, revivedResult.rows[0], "RSVP registration successful", 200);
     }
 
@@ -753,6 +779,20 @@ async function registerForEvent(req, res, next) {
       `,
       [userId, eventId]
     );
+
+    const attendeeResult = await pool.query(
+      `SELECT id, full_name, email FROM users WHERE id = $1`,
+      [userId]
+    );
+    
+    try {
+      await notifyRegistrationConfirmation({
+        attendee: attendeeResult.rows[0],
+        event: eventResult.rows[0],
+      });
+    } catch (notificationError) {
+      console.error("Registration notification failed:", notificationError.message)
+    }
 
     return successResponse(
       res,
@@ -827,7 +867,21 @@ async function approveEvent(req, res, next) {
   try {
     const { id } = req.params;
 
-    const existing = await pool.query(`SELECT id FROM events WHERE id = $1`, [id]);
+    const existing = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.title,
+        e.organizer_id,
+        u.full_name AS organizer_name,
+        u.email AS organizer_email
+      FROM events e
+      JOIN users u ON u.id = e.organizer_id
+      WHERE e.id = $1
+      `,
+      [id]
+    );
+
     if (existing.rows.length === 0) {
       return errorResponse(res, 404, "Event not found");
     }
@@ -841,6 +895,22 @@ async function approveEvent(req, res, next) {
       `,
       [id]
     );
+
+    const organizer = {
+      id: existing.rows[0].organizer_id,
+      full_name: existing.rows[0].organizer_name,
+      email: existing.rows[0].organizer_email,
+    };
+    
+    try {
+      await notifyEventApprovalStatus({
+        organizer,
+        event: result.rows[0],
+        status: "approved",
+      });
+    } catch (notificationError) {
+      console.error("Approval notification failed:", notificationError.message)
+    }
 
     return successResponse(res, result.rows[0], "Event approved successfully");
   } catch (error) {
@@ -876,7 +946,21 @@ async function rejectEvent(req, res, next) {
       );
     }
 
-    const existing = await pool.query(`SELECT id FROM events WHERE id = $1`, [id]);
+    const existing = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.title,
+        e.organizer_id,
+        u.full_name AS organizer_name,
+        u.email AS organizer_email
+      FROM events e
+      JOIN users u ON u.id = e.organizer_id
+      WHERE e.id = $1
+      `,
+      [id]
+    );
+
     if (existing.rows.length === 0) {
       return errorResponse(res, 404, "Event not found");
     }
@@ -893,6 +977,22 @@ async function rejectEvent(req, res, next) {
       `,
       [id, rejection_reason]
     );
+
+    const organizer = {
+      id: existing.rows[0].organizer_id,
+      full_name: existing.rows[0].organizer_name,
+      email: existing.rows[0].organizer_email,
+    };
+    
+    try {
+      await notifyEventApprovalStatus({
+        organizer,
+        event: result.rows[0],
+        status: "rejected",
+      });
+    } catch (notificationError) {
+      console.error("Rejection notification failed:", notificationError.message)
+    }
 
     return successResponse(res, result.rows[0], "Event rejected successfully");
   } catch (error) {
