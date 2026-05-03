@@ -3,6 +3,7 @@ const { successResponse, errorResponse } = require("../utils/responseHandler");
 const {
   isNonEmptyTrimmedString,
   isNumericNonNegative,
+  normalizeCategoryLabel,
 } = require("../utils/validation");
 
 const isValidEventDate = (eventDate) => {
@@ -38,9 +39,26 @@ function canManageEvents(user) {
   return user && (user.role === "organizer" || user.role === "admin");
 }
 
+async function getEventCategories(req, res, next) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT DISTINCT BTRIM(category) AS category
+      FROM events
+      WHERE category IS NOT NULL AND BTRIM(category) <> ''
+      ORDER BY 1 ASC
+      `
+    );
+    const categories = result.rows.map((row) => row.category).filter(Boolean);
+    return successResponse(res, categories, "Categories fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getAllEvents(req, res, next) {
   try {
-    const { keyword, category, date, location } = req.query;
+    const { keyword, category, date_from, date_to, location } = req.query;
 
     const viewer = req.user && typeof req.user === "object" ? req.user : null;
     const conditions = [];
@@ -74,13 +92,30 @@ async function getAllEvents(req, res, next) {
       paramIndex++;
     }
 
-    if (date !== undefined && date !== null && String(date).trim() !== "") {
-      const dateStr = String(date).trim();
-      if (!isValidEventDate(dateStr)) {
-        return errorResponse(res, 400, "Invalid date filter format");
-      }
-      conditions.push(`e.event_date = $${paramIndex}`);
-      values.push(dateStr);
+    const dateFromStr =
+      date_from !== undefined && date_from !== null ? String(date_from).trim() : "";
+    const dateToStr = date_to !== undefined && date_to !== null ? String(date_to).trim() : "";
+
+    if (dateFromStr !== "" && !isValidEventDate(dateFromStr)) {
+      return errorResponse(res, 400, "Invalid date filter format");
+    }
+    if (dateToStr !== "" && !isValidEventDate(dateToStr)) {
+      return errorResponse(res, 400, "Invalid date filter format");
+    }
+    if (dateFromStr !== "" && dateToStr !== "" && dateFromStr > dateToStr) {
+      return errorResponse(res, 400, "Invalid date range: start must be on or before end");
+    }
+    if (dateFromStr !== "" && dateToStr !== "") {
+      conditions.push(`e.event_date >= $${paramIndex} AND e.event_date <= $${paramIndex + 1}`);
+      values.push(dateFromStr, dateToStr);
+      paramIndex += 2;
+    } else if (dateFromStr !== "") {
+      conditions.push(`e.event_date >= $${paramIndex}`);
+      values.push(dateFromStr);
+      paramIndex++;
+    } else if (dateToStr !== "") {
+      conditions.push(`e.event_date <= $${paramIndex}`);
+      values.push(dateToStr);
       paramIndex++;
     }
 
@@ -482,6 +517,11 @@ async function createEvent(req, res, next) {
       );
     }
 
+    const categoryNormalized = normalizeCategoryLabel(category);
+    if (!categoryNormalized) {
+      return errorResponse(res, 400, "category is required");
+    }
+
     if (!isNumericNonNegative(ticket_price)) {
       return errorResponse(res, 400, "ticket_price must be numeric and >= 0");
     }
@@ -492,6 +532,14 @@ async function createEvent(req, res, next) {
 
     if (!isValidStartTime(start_time)) {
       return errorResponse(res, 400, "Invalid start_time format");
+    }
+
+    const endTimeTrimmed = typeof end_time === "string" ? end_time.trim() : "";
+    if (!endTimeTrimmed) {
+      return errorResponse(res, 400, "end_time is required");
+    }
+    if (!isValidStartTime(endTimeTrimmed)) {
+      return errorResponse(res, 400, "Invalid end_time format");
     }
 
     if (!isValidCapacity(capacity)) {
@@ -536,10 +584,10 @@ async function createEvent(req, res, next) {
         req.user.userId,
         titleTrimmed,
         descriptionTrimmed,
-        category || null,
+        categoryNormalized,
         event_date,
         start_time,
-        end_time || null,
+        endTimeTrimmed,
         location_name || null,
         location_address || null,
         location_city || null,
@@ -620,6 +668,16 @@ async function updateEvent(req, res, next) {
       return errorResponse(res, 400, "Invalid start_time format");
     }
 
+    if (Object.prototype.hasOwnProperty.call(body, "end_time")) {
+      const endTrimmed = typeof end_time === "string" ? end_time.trim() : "";
+      if (!endTrimmed) {
+        return errorResponse(res, 400, "end_time is required");
+      }
+      if (!isValidStartTime(endTrimmed)) {
+        return errorResponse(res, 400, "Invalid end_time format");
+      }
+    }
+
     if (Object.prototype.hasOwnProperty.call(body, "capacity")) {
       if (!isValidCapacity(capacity)) {
         return errorResponse(res, 400, "capacity must be a number greater than 0");
@@ -635,6 +693,12 @@ async function updateEvent(req, res, next) {
     if (req.user.role !== "admin" && Number(event.organizer_id) !== Number(req.user.userId)) {
       return errorResponse(res, 403, "You can only update your own events");
     }
+
+    const resolvedEndTime = Object.prototype.hasOwnProperty.call(body, "end_time")
+      ? typeof end_time === "string"
+        ? end_time.trim()
+        : ""
+      : event.end_time;
 
     const updatedIsFree = typeof is_free === "boolean" ? is_free : event.is_free;
     const updatedTicketPrice = Object.prototype.hasOwnProperty.call(body, "ticket_price")
@@ -682,7 +746,7 @@ async function updateEvent(req, res, next) {
         category ?? event.category,
         event_date ?? event.event_date,
         start_time ?? event.start_time,
-        end_time ?? event.end_time,
+        resolvedEndTime,
         location_name ?? event.location_name,
         location_address ?? event.location_address,
         location_city ?? event.location_city,
@@ -943,6 +1007,7 @@ async function rejectEvent(req, res, next) {
 }
 
 module.exports = {
+  getEventCategories,
   getAllEvents,
   getMyEvents,
   getMyRegisteredEvents,

@@ -7,7 +7,11 @@ export async function login(email, password) {
     body: JSON.stringify({ email, password }),
   });
 
-  return response.json();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Login failed");
+  }
+  return data;
 }
 
 export async function register({ full_name, email, password, role }) {
@@ -24,5 +28,9 @@ export async function register({ full_name, email, password, role }) {
     }),
   });
 
-  return response.json();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Registration failed");
+  }
+  return data;
 }

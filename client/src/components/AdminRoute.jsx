@@ -1,9 +1,9 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { decodeJwtPayload } from "../utils/decodeJwtPayload";
+import { decodeJwtPayload, getValidStoredToken } from "../utils/decodeJwtPayload";
 
 /** Only users with JWT role `admin` may access nested routes. */
 export default function AdminRoute() {
-  const token = localStorage.getItem("token");
+  const token = getValidStoredToken();
   if (!token) {
     return <Navigate to="/login" replace />;
   }

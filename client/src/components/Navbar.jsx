@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { decodeJwtPayload } from "../utils/decodeJwtPayload";
+import { decodeJwtPayload, getValidStoredToken } from "../utils/decodeJwtPayload";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [hasToken, setHasToken] = useState(() => !!localStorage.getItem("token"));
+  const [hasToken, setHasToken] = useState(() => !!getValidStoredToken());
 
   const [role, setRole] = useState(() => decodeJwtPayload(localStorage.getItem("token"))?.role ?? null);
 
   useEffect(() => {
-    const t = localStorage.getItem("token");
+    const t = getValidStoredToken();
     setHasToken(!!t);
     setRole(decodeJwtPayload(t)?.role ?? null);
   }, [location.pathname]);

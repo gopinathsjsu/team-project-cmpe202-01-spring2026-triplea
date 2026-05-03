@@ -2,20 +2,52 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import EventCard from "../components/EventCard";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
-import { getEvents } from "../services/eventService";
+import { getEvents, getEventCategories } from "../services/eventService";
 
 export default function EventListPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [category, setCategory] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [location, setLocation] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const isOrganizer = decodeJwtPayload(localStorage.getItem("token"))?.role === "organizer";
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getEventCategories();
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (!cancelled) {
+          setCategoryOptions(list);
+        }
+      } catch {
+        if (!cancelled) {
+          setCategoryOptions([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const loadEvents = async () => {
       try {
         setLoading(true);
         setError("");
-        const response = await getEvents();
+        const response = await getEvents({
+          keyword,
+          category,
+          dateFrom,
+          dateTo,
+          location,
+        });
         setEvents(Array.isArray(response?.data) ? response.data : []);
       } catch (fetchError) {
         setError(fetchError?.message || "Failed to load events");
@@ -25,7 +57,7 @@ export default function EventListPage() {
     };
 
     loadEvents();
-  }, []);
+  }, [keyword, category, dateFrom, dateTo, location]);
 
   return (
     <main style={{ padding: "16px", display: "grid", gap: "12px" }}>
@@ -33,6 +65,8 @@ export default function EventListPage() {
         <input
           type="text"
           placeholder="Search events, categories, or locations..."
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
           style={{ flex: 1, padding: "8px", border: "1px solid #ccc" }}
         />
         {isOrganizer ? (
@@ -46,20 +80,44 @@ export default function EventListPage() {
         <aside style={{ border: "1px solid #ddd", padding: "12px", alignSelf: "start" }}>
           <h3>Filters</h3>
           <p style={{ marginBottom: "6px" }}>Category</p>
-          <label style={{ display: "block" }}>
-            <input type="checkbox" /> All Categories
-          </label>
-          <label style={{ display: "block" }}>
-            <input type="checkbox" /> Music
-          </label>
-          <label style={{ display: "block" }}>
-            <input type="checkbox" /> Tech
-          </label>
-          <p style={{ marginTop: "10px", marginBottom: "6px" }}>Date</p>
-          <input type="text" placeholder="From" style={{ width: "100%", marginBottom: "6px" }} />
-          <input type="text" placeholder="To" style={{ width: "100%", marginBottom: "6px" }} />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ width: "100%", marginBottom: "6px", padding: "6px" }}
+          >
+            <option value="">All Categories</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <p style={{ marginTop: "10px", marginBottom: "6px" }}>Date range</p>
+          <label style={{ display: "block", fontSize: "13px", marginBottom: "4px" }}>From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            style={{ width: "100%", marginBottom: "8px" }}
+          />
+          <label style={{ display: "block", fontSize: "13px", marginBottom: "4px" }}>To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            style={{ width: "100%", marginBottom: "6px" }}
+          />
+          <p style={{ fontSize: "12px", color: "#555", margin: "4px 0 0" }}>
+            Both empty: all event dates. From only: that day and later. To only: that day and earlier.
+          </p>
           <p style={{ marginTop: "10px", marginBottom: "6px" }}>Location</p>
-          <input type="text" placeholder="Enter location..." style={{ width: "100%", marginBottom: "6px" }} />
+          <input
+            type="text"
+            placeholder="Enter location..."
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            style={{ width: "100%", marginBottom: "6px" }}
+          />
           <p style={{ marginTop: "10px", marginBottom: "6px" }}>Price</p>
           <label style={{ display: "block" }}>
             <input type="checkbox" /> Free
