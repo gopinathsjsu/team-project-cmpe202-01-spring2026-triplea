@@ -5,6 +5,7 @@ const {
   isNumericNonNegative,
   normalizeCategoryLabel,
 } = require("../utils/validation");
+const {
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
 } = require("../utils/notificationService");
@@ -746,7 +747,9 @@ async function updateEvent(req, res, next) {
         Object.prototype.hasOwnProperty.call(body, "event_description")
           ? String(event_description).trim()
           : event.event_description,
-        category ?? event.category,
+        Object.prototype.hasOwnProperty.call(body, "category")
+          ? normalizeCategoryLabel(typeof category === "string" ? category : "")
+          : event.category,
         event_date ?? event.event_date,
         start_time ?? event.start_time,
         resolvedEndTime,
@@ -1096,7 +1099,7 @@ async function rejectEvent(req, res, next) {
         status: "rejected",
       });
     } catch (notificationError) {
-      console.error("Rejection notification failed:", notificationError.message)
+      console.error("Rejection notification failed:", notificationError.message);
     }
 
     return successResponse(res, result.rows[0], "Event rejected successfully");
