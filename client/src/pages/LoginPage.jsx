@@ -33,12 +33,7 @@ export default function LoginPage() {
     try {
       if (activeTab === "login") {
         const response = await login(email, password);
-
-        if (response?.success) {
-          persistSessionAndGo(response);
-        } else {
-          setLoginError(response?.message || "Login failed");
-        }
+        persistSessionAndGo(response);
         return;
       }
 
@@ -54,12 +49,7 @@ export default function LoginPage() {
         password,
         role: registerRole,
       });
-
-      if (response?.success) {
-        persistSessionAndGo(response);
-      } else {
-        setLoginError(response?.message || "Registration failed");
-      }
+      persistSessionAndGo(response);
     } catch (error) {
       setLoginError(error?.message || "Something went wrong.");
     }

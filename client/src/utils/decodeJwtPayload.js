@@ -21,3 +21,37 @@ export function decodeJwtPayload(token) {
     return null;
   }
 }
+
+/** True if JWT is missing, invalid, or past `exp` (client hint only; API still verifies). */
+export function isJwtExpired(token) {
+  if (token == null || typeof token !== "string" || !token) {
+    return true;
+  }
+  const p = decodeJwtPayload(token);
+  if (!p) {
+    return true;
+  }
+  if (typeof p.exp !== "number") {
+    return false;
+  }
+  return Date.now() >= p.exp * 1000;
+}
+
+/**
+ * Returns the stored access token, or null. Removes token from storage if missing, invalid, or expired.
+ */
+export function getValidStoredToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return null;
+  }
+  if (isJwtExpired(token)) {
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("eventhubUserName");
+    return null;
+  }
+  return token;
+}

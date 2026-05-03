@@ -1,8 +1,64 @@
-export async function getEvents() {
-  const response = await fetch("http://localhost:5000/api/events");
+export async function getEvents(filters = {}) {
+  const { keyword, category, dateFrom, dateTo, location } = filters;
+
+  const params = new URLSearchParams();
+  if (keyword != null && String(keyword).trim() !== "") {
+    params.set("keyword", String(keyword).trim());
+  }
+  if (category != null && String(category).trim() !== "") {
+    params.set("category", String(category).trim());
+  }
+  if (dateFrom != null && String(dateFrom).trim() !== "") {
+    params.set("date_from", String(dateFrom).trim());
+  }
+  if (dateTo != null && String(dateTo).trim() !== "") {
+    params.set("date_to", String(dateTo).trim());
+  }
+  if (location != null && String(location).trim() !== "") {
+    params.set("location", String(location).trim());
+  }
+
+  const qs = params.toString();
+  const url = `http://localhost:5000/api/events${qs ? `?${qs}` : ""}`;
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch events");
+    let message = "Failed to fetch events";
+    try {
+      const body = await response.json();
+      if (body?.message) {
+        message = body.message;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
+export async function getEventCategories() {
+  const response = await fetch("http://localhost:5000/api/events/categories");
+
+  if (!response.ok) {
+    let message = "Failed to fetch categories";
+    try {
+      const body = await response.json();
+      if (body?.message) {
+        message = body.message;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
   }
 
   return response.json();

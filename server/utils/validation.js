@@ -30,9 +30,23 @@ function isBasicEmailFormat(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
 }
 
+/** Trim; empty → null; otherwise first character uppercased, rest unchanged. */
+function normalizeCategoryLabel(raw) {
+  if (raw == null) {
+    return null;
+  }
+  const str = typeof raw === "string" ? raw : String(raw);
+  const t = str.trim();
+  if (t === "") {
+    return null;
+  }
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 module.exports = {
   isPositiveIntegerEventId,
   isNonEmptyTrimmedString,
   isNumericNonNegative,
   isBasicEmailFormat,
+  normalizeCategoryLabel,
 };

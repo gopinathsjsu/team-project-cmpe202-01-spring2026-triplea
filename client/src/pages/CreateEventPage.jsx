@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { createEvent } from "../services/eventService";
+import { createEvent, getEventCategories } from "../services/eventService";
+import { normalizeCategoryLabel } from "../utils/categoryLabel";
+
+const OTHER_CATEGORY = "__others__";
 
 function normalizeTime(value) {
   if (value == null || typeof value !== "string") {
@@ -16,7 +19,9 @@ export default function CreateEventPage() {
 
   const [title, setTitle] = useState("");
   const [event_description, setEventDescription] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [categorySelect, setCategorySelect] = useState("");
+  const [otherCategoryText, setOtherCategoryText] = useState("");
   const [event_date, setEventDate] = useState("");
   const [start_time, setStartTime] = useState("");
   const [end_time, setEndTime] = useState("");
@@ -30,6 +35,26 @@ export default function CreateEventPage() {
   const [ticket_price, setTicketPrice] = useState("0");
   const [schedule_notes, setScheduleNotes] = useState("");
   const [calendar_link, setCalendarLink] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getEventCategories();
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (!cancelled) {
+          setCategoryOptions(list);
+        }
+      } catch {
+        if (!cancelled) {
+          setCategoryOptions([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -47,14 +72,40 @@ export default function CreateEventPage() {
       return;
     }
 
+    if (!categorySelect) {
+      setError("Please select a category.");
+      return;
+    }
+
+    if (categorySelect === OTHER_CATEGORY && !otherCategoryText.trim()) {
+      setError("Please enter a category for Others.");
+      return;
+    }
+
+    const categoryForDb =
+      categorySelect === OTHER_CATEGORY
+        ? normalizeCategoryLabel(otherCategoryText)
+        : normalizeCategoryLabel(categorySelect);
+
+    if (!categoryForDb) {
+      setError("Category is required.");
+      return;
+    }
+
+    const endNormalized = normalizeTime(end_time);
+    if (!endNormalized) {
+      setError("End time is required.");
+      return;
+    }
+
     const priceNum = Number(ticket_price);
     const body = {
       title: title.trim(),
       event_description: event_description.trim(),
-      category: category.trim() || null,
+      category: categoryForDb,
       event_date,
       start_time: normalizeTime(start_time),
-      end_time: end_time ? normalizeTime(end_time) : null,
+      end_time: endNormalized,
       location_name: location_name.trim() || null,
       location_address: location_address.trim() || null,
       location_city: location_city.trim() || null,
@@ -93,7 +144,7 @@ export default function CreateEventPage() {
       <section style={{ border: "1px solid #ddd", padding: "16px" }}>
         <h2 style={{ marginTop: 0 }}>Create Event</h2>
         <p style={{ marginTop: 0, color: "#555", fontSize: "14px" }}>
-          Submit for admin approval. Required: title, description, date, start time, and capacity.
+          Submit for admin approval. Required: title, description, category, date, start time, end time, and capacity.
         </p>
 
         <form onSubmit={onSubmit}>
@@ -122,16 +173,38 @@ export default function CreateEventPage() {
           />
 
           <label htmlFor="evt-cat" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
-            Category
+            Category *
           </label>
-          <input
+          <select
             id="evt-cat"
-            type="text"
-            placeholder="e.g. Music, Tech"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            required
+            value={categorySelect}
+            onChange={(e) => {
+              setCategorySelect(e.target.value);
+              if (e.target.value !== OTHER_CATEGORY) {
+                setOtherCategoryText("");
+              }
+            }}
             style={inputStyle}
-          />
+          >
+            <option value="">Select a category</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            <option value={OTHER_CATEGORY}>Others</option>
+          </select>
+          {categorySelect === OTHER_CATEGORY ? (
+            <input
+              type="text"
+              required
+              placeholder="Enter your category"
+              value={otherCategoryText}
+              onChange={(e) => setOtherCategoryText(e.target.value)}
+              style={inputStyle}
+            />
+          ) : null}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             <div>
@@ -165,9 +238,16 @@ export default function CreateEventPage() {
             </div>
             <div>
               <label htmlFor="evt-end" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
-                End time
+                End time *
               </label>
-              <input id="evt-end" type="time" value={end_time} onChange={(e) => setEndTime(e.target.value)} style={inputStyle} />
+              <input
+                id="evt-end"
+                type="time"
+                required
+                value={end_time}
+                onChange={(e) => setEndTime(e.target.value)}
+                style={inputStyle}
+              />
             </div>
           </div>
 
