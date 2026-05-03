@@ -137,7 +137,7 @@ export default function CreateEventPage() {
   return (
     <main className="page page-narrow">
       <Link to="/events" className="back-link">
-        ← Back to events
+        ← Back to current events
       </Link>
       <section className="card card-pad-lg">
         <h1 className="page-title" style={{ marginBottom: "0.35rem" }}>

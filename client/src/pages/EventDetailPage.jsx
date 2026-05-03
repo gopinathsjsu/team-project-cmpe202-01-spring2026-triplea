@@ -175,7 +175,7 @@ export default function EventDetailPage() {
       <main className="page">
         <p className="text-error">{error}</p>
         <p>
-          <Link to="/events">← Back to events</Link>
+          <Link to="/events">← Back to current events</Link>
         </p>
       </main>
     );
@@ -186,7 +186,7 @@ export default function EventDetailPage() {
       <main className="page">
         <p>No event data available.</p>
         <p>
-          <Link to="/events">← Back to events</Link>
+          <Link to="/events">← Back to current events</Link>
         </p>
       </main>
     );
@@ -271,7 +271,7 @@ export default function EventDetailPage() {
   return (
     <main className="page">
       <Link to="/events" className="back-link">
-        ← Back to events
+        ← Back to current events
       </Link>
 
       <div className="detail-layout">

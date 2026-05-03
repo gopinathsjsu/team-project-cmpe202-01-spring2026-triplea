@@ -48,6 +48,60 @@ export async function getEvents(filters = {}) {
   return response.json();
 }
 
+/** Admin only — events with event_date before today (same filters/sort as public list). */
+export async function getPastEventsForAdmin(filters = {}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+
+  const { keyword, category, dateFrom, dateTo, location, sortBy } = filters;
+
+  const params = new URLSearchParams();
+  if (keyword != null && String(keyword).trim() !== "") {
+    params.set("keyword", String(keyword).trim());
+  }
+  if (category != null && String(category).trim() !== "") {
+    params.set("category", String(category).trim());
+  }
+  if (dateFrom != null && String(dateFrom).trim() !== "") {
+    params.set("date_from", String(dateFrom).trim());
+  }
+  if (dateTo != null && String(dateTo).trim() !== "") {
+    params.set("date_to", String(dateTo).trim());
+  }
+  if (location != null && String(location).trim() !== "") {
+    params.set("location", String(location).trim());
+  }
+  if (sortBy != null && String(sortBy).trim() !== "") {
+    params.set("sort", String(sortBy).trim());
+  }
+
+  const qs = params.toString();
+  const url = `http://localhost:5000/api/events/admin/past${qs ? `?${qs}` : ""}`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    let message = "Failed to fetch past events";
+    try {
+      const body = await response.json();
+      if (body?.message) {
+        message = body.message;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
 export async function getEventCategories() {
   const response = await fetch("http://localhost:5000/api/events/categories");
 

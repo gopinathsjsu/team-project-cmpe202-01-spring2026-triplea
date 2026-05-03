@@ -143,6 +143,9 @@ async function getAllEvents(req, res, next) {
       paramIndex++;
     }
 
+    /* Public browse list: only today and future (calendar date); past events appear on attendee dashboard */
+    conditions.push("e.event_date >= CURRENT_DATE");
+
     const sortRaw =
       req.query.sort !== undefined && req.query.sort !== null ? String(req.query.sort).trim() : "";
     const orderBySql =
@@ -209,6 +212,147 @@ async function getAllEvents(req, res, next) {
     const result = await pool.query(query, values);
 
     return successResponse(res, result.rows, "Events fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/** Admin-only: same shape as public list, but only events before today (all approval statuses). */
+async function getPastEventsForAdmin(req, res, next) {
+  try {
+    const viewer = req.user && typeof req.user === "object" ? req.user : null;
+    if (!viewer || viewer.role !== "admin") {
+      return errorResponse(res, 403, "Forbidden");
+    }
+
+    const { keyword, category, date_from, date_to, location } = req.query;
+
+    const conditions = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (keyword) {
+      conditions.push(`(
+        e.title ILIKE $${paramIndex}
+        OR e.event_description ILIKE $${paramIndex}
+      )`);
+      values.push(`%${keyword}%`);
+      paramIndex++;
+    }
+
+    if (category) {
+      conditions.push(`e.category ILIKE $${paramIndex}`);
+      values.push(`%${category}%`);
+      paramIndex++;
+    }
+
+    const dateFromStr =
+      date_from !== undefined && date_from !== null ? String(date_from).trim() : "";
+    const dateToStr = date_to !== undefined && date_to !== null ? String(date_to).trim() : "";
+
+    if (dateFromStr !== "" && !isValidEventDate(dateFromStr)) {
+      return errorResponse(res, 400, "Invalid date filter format");
+    }
+    if (dateToStr !== "" && !isValidEventDate(dateToStr)) {
+      return errorResponse(res, 400, "Invalid date filter format");
+    }
+    if (dateFromStr !== "" && dateToStr !== "" && dateFromStr > dateToStr) {
+      return errorResponse(res, 400, "Invalid date range: start must be on or before end");
+    }
+    if (dateFromStr !== "" && dateToStr !== "") {
+      conditions.push(`e.event_date >= $${paramIndex} AND e.event_date <= $${paramIndex + 1}`);
+      values.push(dateFromStr, dateToStr);
+      paramIndex += 2;
+    } else if (dateFromStr !== "") {
+      conditions.push(`e.event_date >= $${paramIndex}`);
+      values.push(dateFromStr);
+      paramIndex++;
+    } else if (dateToStr !== "") {
+      conditions.push(`e.event_date <= $${paramIndex}`);
+      values.push(dateToStr);
+      paramIndex++;
+    }
+
+    if (location) {
+      conditions.push(`(
+        e.location_name ILIKE $${paramIndex}
+        OR e.location_address ILIKE $${paramIndex}
+        OR e.location_city ILIKE $${paramIndex}
+        OR e.location_state ILIKE $${paramIndex}
+        OR e.location_zip_code ILIKE $${paramIndex}
+      )`);
+      values.push(`%${location}%`);
+      paramIndex++;
+    }
+
+    conditions.push("e.event_date < CURRENT_DATE");
+
+    const sortRaw =
+      req.query.sort !== undefined && req.query.sort !== null ? String(req.query.sort).trim() : "";
+    const orderBySql =
+      sortRaw !== "" && Object.prototype.hasOwnProperty.call(EVENT_LIST_SORT_SQL, sortRaw)
+        ? EVENT_LIST_SORT_SQL[sortRaw]
+        : EVENT_LIST_SORT_SQL.date_asc;
+
+    const query = `
+      SELECT
+        e.id,
+        e.organizer_id,
+        e.title,
+        e.event_description,
+        e.category,
+        e.event_date,
+        e.start_time,
+        e.end_time,
+        e.location_name,
+        e.location_address,
+        e.location_city,
+        e.location_state,
+        e.location_zip_code,
+        e.latitude,
+        e.longitude,
+        e.capacity,
+        e.approval_status,
+        e.rejection_reason,
+        e.is_free,
+        e.ticket_price,
+        e.schedule_notes,
+        e.calendar_link,
+        e.created_at,
+        e.updated_at,
+        u.full_name AS organizer_name,
+        u.email AS organizer_email,
+        COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')::INT AS active_registration_count,
+        (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered'))::INT AS remaining_capacity,
+        (
+          (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')) <= 0
+        )::BOOLEAN AS is_full,
+        (
+          e.approval_status = 'approved'
+          AND
+          (e.capacity - COUNT(r.id) FILTER (WHERE r.registration_status = 'registered')) > 0
+        )::BOOLEAN AS can_register,
+        CONCAT_WS(
+          ', ',
+          e.location_name,
+          e.location_address,
+          e.location_city,
+          e.location_state,
+          e.location_zip_code
+        ) AS full_location
+      FROM events e
+      JOIN users u
+        ON e.organizer_id = u.id
+      LEFT JOIN registrations r
+        ON e.id = r.event_id
+      WHERE ${conditions.length > 0 ? conditions.join(" AND ") : "TRUE"}
+      GROUP BY e.id, u.id
+      ORDER BY ${orderBySql}
+    `;
+
+    const result = await pool.query(query, values);
+
+    return successResponse(res, result.rows, "Past events fetched successfully");
   } catch (error) {
     return next(error);
   }
@@ -1126,6 +1270,7 @@ async function rejectEvent(req, res, next) {
 module.exports = {
   getEventCategories,
   getAllEvents,
+  getPastEventsForAdmin,
   getMyEvents,
   getMyRegisteredEvents,
   getPendingEvents,

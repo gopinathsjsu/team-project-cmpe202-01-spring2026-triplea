@@ -8,6 +8,7 @@ export default function Navbar() {
   const [hasToken, setHasToken] = useState(() => !!getValidStoredToken());
 
   const [role, setRole] = useState(() => decodeJwtPayload(localStorage.getItem("token"))?.role ?? null);
+  const isAdmin = role === "admin";
 
   useEffect(() => {
     const t = getValidStoredToken();
@@ -28,8 +29,13 @@ export default function Navbar() {
     <nav className="top-nav">
       <span className="top-nav__brand">EventHub</span>
       <NavLink to="/events" className={linkClass}>
-        Events
+        Current events
       </NavLink>
+      {isAdmin ? (
+        <NavLink to="/admin/past-events" className={linkClass}>
+          Past events
+        </NavLink>
+      ) : null}
       {hasToken ? (
         <>
           <NavLink to="/dashboard" className={linkClass}>

@@ -9,6 +9,7 @@ const { authorizeRoles } = require("../middleware/authorizeRole");
 const {
   getEventCategories,
   getAllEvents,
+  getPastEventsForAdmin,
   getMyEvents,
   getMyRegisteredEvents,
   getPendingEvents,
@@ -26,6 +27,12 @@ const {
 } = require("../controllers/eventController");
 
 router.get("/", authenticateTokenOptional, getAllEvents);
+router.get(
+  "/admin/past",
+  authenticateToken,
+  authorizeRoles("admin"),
+  getPastEventsForAdmin
+);
 router.get("/my-events", authenticateToken, authorizeRoles("organizer"), getMyEvents);
 router.get("/my-registrations", authenticateToken, authorizeRoles("attendee"), getMyRegisteredEvents);
 router.get("/pending", authenticateToken, authorizeRoles("admin"), getPendingEvents);

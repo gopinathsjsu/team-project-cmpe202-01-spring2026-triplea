@@ -354,11 +354,11 @@ export default function DashboardPage() {
           </p>
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
             <a href="#reg-past" style={{ color: "inherit" }}>
-              Past
+              Past events
             </a>
           </p>
           <p style={{ margin: "14px 0 0", fontSize: "14px" }}>
-            <Link to="/events">Browse more events</Link>
+            <Link to="/events">Browse current events</Link>
           </p>
         </aside>
 
@@ -366,7 +366,9 @@ export default function DashboardPage() {
           <h1 className="page-title" style={{ fontSize: "1.35rem" }}>
             Welcome back, {userName}!
           </h1>
-          <p className="page-lede">Events you are registered for (active RSVPs).</p>
+          <p className="page-lede">
+            Events you are registered for (active RSVPs). Past registrations are listed in Past events below.
+          </p>
 
           <div className="dash-stat-grid dash-stat-grid--3">
             <div className="dash-stat">Registrations: {registeredEvents.length}</div>
@@ -660,7 +662,7 @@ export default function DashboardPage() {
         <p>Dashboard</p>
         <p>
           <Link to="/events" style={{ color: "inherit" }}>
-            Browse events
+            Browse current events
           </Link>
         </p>
         <p>Profile</p>
@@ -677,7 +679,7 @@ export default function DashboardPage() {
             Explore
           </h3>
           <p className="page-lede" style={{ margin: 0 }}>
-            Open <Link to="/events">Events</Link> to get started.
+            Open <Link to="/events">current events</Link> to get started.
           </p>
         </section>
       </section>
