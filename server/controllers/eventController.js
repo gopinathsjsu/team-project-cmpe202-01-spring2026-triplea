@@ -39,6 +39,14 @@ const isValidCapacity = (capacity) => {
 
 const MAX_REJECTION_REASON_LENGTH = 2000;
 
+/** Public events list — ORDER BY fragments (sort query param must match keys only). */
+const EVENT_LIST_SORT_SQL = {
+  date_asc: "e.event_date ASC, e.start_time ASC",
+  date_desc: "e.event_date DESC, e.start_time DESC",
+  title_asc: "LOWER(e.title) ASC NULLS LAST, e.event_date ASC, e.start_time ASC",
+  title_desc: "LOWER(e.title) DESC NULLS LAST, e.event_date ASC, e.start_time ASC",
+};
+
 function canManageEvents(user) {
   return user && (user.role === "organizer" || user.role === "admin");
 }
@@ -135,6 +143,13 @@ async function getAllEvents(req, res, next) {
       paramIndex++;
     }
 
+    const sortRaw =
+      req.query.sort !== undefined && req.query.sort !== null ? String(req.query.sort).trim() : "";
+    const orderBySql =
+      sortRaw !== "" && Object.prototype.hasOwnProperty.call(EVENT_LIST_SORT_SQL, sortRaw)
+        ? EVENT_LIST_SORT_SQL[sortRaw]
+        : EVENT_LIST_SORT_SQL.date_asc;
+
     const query = `
       SELECT
         e.id,
@@ -188,7 +203,7 @@ async function getAllEvents(req, res, next) {
         ON e.id = r.event_id
       WHERE ${conditions.length > 0 ? conditions.join(" AND ") : "TRUE"}
       GROUP BY e.id, u.id
-      ORDER BY e.event_date ASC, e.start_time ASC
+      ORDER BY ${orderBySql}
     `;
 
     const result = await pool.query(query, values);

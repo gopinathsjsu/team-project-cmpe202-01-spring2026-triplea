@@ -13,6 +13,7 @@ export default function EventListPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [location, setLocation] = useState("");
+  const [sortBy, setSortBy] = useState("date_asc");
   const [categoryOptions, setCategoryOptions] = useState([]);
   const isOrganizer = decodeJwtPayload(localStorage.getItem("token"))?.role === "organizer";
 
@@ -47,6 +48,7 @@ export default function EventListPage() {
           dateFrom,
           dateTo,
           location,
+          sortBy,
         });
         setEvents(Array.isArray(response?.data) ? response.data : []);
       } catch (fetchError) {
@@ -57,7 +59,7 @@ export default function EventListPage() {
     };
 
     loadEvents();
-  }, [keyword, category, dateFrom, dateTo, location]);
+  }, [keyword, category, dateFrom, dateTo, location, sortBy]);
 
   const clearFilters = () => {
     setKeyword("");
@@ -165,7 +167,23 @@ export default function EventListPage() {
         <section className="card card-pad-lg">
           <div className="events-main__head">
             <h2>Events</h2>
-            <span className="events-main__meta">Sorted by date</span>
+            <div className="events-main__sort-wrap">
+              <label className="events-main__sort-label" htmlFor="event-sort">
+                Sort
+              </label>
+              <select
+                id="event-sort"
+                className="select events-main__sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                aria-label="Sort events"
+              >
+                <option value="date_asc">Date (earliest first)</option>
+                <option value="date_desc">Date (latest first)</option>
+                <option value="title_asc">Title A–Z</option>
+                <option value="title_desc">Title Z–A</option>
+              </select>
+            </div>
           </div>
           <p className="page-lede" style={{ marginBottom: "1rem" }}>
             Discover campus and community events from organizers.

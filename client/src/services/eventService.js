@@ -1,5 +1,5 @@
 export async function getEvents(filters = {}) {
-  const { keyword, category, dateFrom, dateTo, location } = filters;
+  const { keyword, category, dateFrom, dateTo, location, sortBy } = filters;
 
   const params = new URLSearchParams();
   if (keyword != null && String(keyword).trim() !== "") {
@@ -16,6 +16,9 @@ export async function getEvents(filters = {}) {
   }
   if (location != null && String(location).trim() !== "") {
     params.set("location", String(location).trim());
+  }
+  if (sortBy != null && String(sortBy).trim() !== "") {
+    params.set("sort", String(sortBy).trim());
   }
 
   const qs = params.toString();
