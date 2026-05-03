@@ -59,85 +59,122 @@ export default function EventListPage() {
     loadEvents();
   }, [keyword, category, dateFrom, dateTo, location]);
 
+  const clearFilters = () => {
+    setKeyword("");
+    setCategory("");
+    setDateFrom("");
+    setDateTo("");
+    setLocation("");
+  };
+
   return (
-    <main style={{ padding: "16px", display: "grid", gap: "12px" }}>
-      <header style={{ border: "1px solid #ddd", padding: "10px", display: "flex", gap: "12px", alignItems: "center" }}>
+    <main className="page">
+      <header className="card card-pad events-toolbar">
         <input
           type="text"
+          className="search-input"
           placeholder="Search events, categories, or locations..."
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          style={{ flex: 1, padding: "8px", border: "1px solid #ccc" }}
+          aria-label="Search events"
         />
         {isOrganizer ? (
-          <Link to="/create-event" style={{ padding: "8px 14px", border: "1px solid #bbb", textDecoration: "none", color: "inherit", fontSize: "14px" }}>
-            Create Event
+          <Link to="/create-event" className="btn btn-primary">
+            Create event
           </Link>
         ) : null}
       </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: "16px", alignItems: "start" }}>
-        <aside style={{ border: "1px solid #ddd", padding: "12px", alignSelf: "start" }}>
+      <div className="events-layout">
+        <aside className="card card-pad filters-panel">
           <h3>Filters</h3>
-          <p style={{ marginBottom: "6px" }}>Category</p>
+
+          <label className="filter-label" htmlFor="filter-category">
+            Category
+          </label>
           <select
+            id="filter-category"
+            className="select"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            style={{ width: "100%", marginBottom: "6px", padding: "6px" }}
           >
-            <option value="">All Categories</option>
+            <option value="">All categories</option>
             {categoryOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
           </select>
-          <p style={{ marginTop: "10px", marginBottom: "6px" }}>Date range</p>
-          <label style={{ display: "block", fontSize: "13px", marginBottom: "4px" }}>From</label>
+
+          <p className="filter-label" style={{ marginTop: "0.75rem" }}>
+            Date range
+          </p>
+          <label className="filter-label" htmlFor="filter-from">
+            From
+          </label>
           <input
+            id="filter-from"
+            className="input"
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            style={{ width: "100%", marginBottom: "8px" }}
           />
-          <label style={{ display: "block", fontSize: "13px", marginBottom: "4px" }}>To</label>
+          <label className="filter-label" htmlFor="filter-to">
+            To
+          </label>
           <input
+            id="filter-to"
+            className="input"
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            style={{ width: "100%", marginBottom: "6px" }}
           />
-          <p style={{ fontSize: "12px", color: "#555", margin: "4px 0 0" }}>
-            Both empty: all event dates. From only: that day and later. To only: that day and earlier.
+          <p className="filter-hint">
+            Both empty: all dates. From only: that day onward. To only: up to that day.
           </p>
-          <p style={{ marginTop: "10px", marginBottom: "6px" }}>Location</p>
+
+          <label className="filter-label" htmlFor="filter-location">
+            Location
+          </label>
           <input
+            id="filter-location"
+            className="input"
             type="text"
-            placeholder="Enter location..."
+            placeholder="City, venue, ZIP…"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            style={{ width: "100%", marginBottom: "6px" }}
           />
-          <p style={{ marginTop: "10px", marginBottom: "6px" }}>Price</p>
-          <label style={{ display: "block" }}>
-            <input type="checkbox" /> Free
+
+          <p className="filter-label" style={{ marginTop: "0.75rem" }}>
+            Price
+          </p>
+          <label className="filter-check">
+            <input type="checkbox" />
+            Free
           </label>
-          <label style={{ display: "block" }}>
-            <input type="checkbox" /> All Events
+          <label className="filter-check">
+            <input type="checkbox" />
+            All events
           </label>
+
+          <button type="button" className="btn btn-secondary btn-block" style={{ marginTop: "0.75rem" }} onClick={clearFilters}>
+            Clear filters
+          </button>
         </aside>
 
-        <section style={{ border: "1px solid #ddd", padding: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <h2 style={{ margin: 0 }}>Popular Events</h2>
-            <small>Sort by: Latest</small>
+        <section className="card card-pad-lg">
+          <div className="events-main__head">
+            <h2>Events</h2>
+            <span className="events-main__meta">Sorted by date</span>
           </div>
-          <p style={{ marginTop: 0 }}>Browse upcoming events from organizers.</p>
-          {loading ? <p>Loading events...</p> : null}
-          {error ? <p style={{ color: "#b00020" }}>{error}</p> : null}
-          {!loading && !error && events.length === 0 ? <p>No events found.</p> : null}
+          <p className="page-lede" style={{ marginBottom: "1rem" }}>
+            Discover campus and community events from organizers.
+          </p>
+          {loading ? <p className="text-muted">Loading events…</p> : null}
+          {error ? <p className="text-error">{error}</p> : null}
+          {!loading && !error && events.length === 0 ? <p className="text-muted">No events match your filters.</p> : null}
           {!loading && !error && events.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px" }}>
+            <div className="event-grid">
               {events.map((event) => (
                 <EventCard
                   key={event.id}

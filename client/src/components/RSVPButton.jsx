@@ -134,24 +134,23 @@ export default function RSVPButton({
   const handleClick = unregisterMode ? handleUnregister : handleRegister;
 
   return (
-    <div style={{ width: "100%" }}>
+    <div className="rsvp-wrap">
       {registerBlocked ? (
-        <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#b00020" }}>Sorry, this event is full.</p>
+        <p className="rsvp-msg text-error">Sorry, this event is full.</p>
       ) : null}
       {!registerBlocked && tokenPresent && isNonAttendee ? (
-        <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#444" }}>
-          Please log in using attendee account to register for this event
-        </p>
+        <p className="rsvp-msg text-muted">Log in with an attendee account to register.</p>
       ) : null}
-      {!tokenPresent && !registerBlocked ? (
-        <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#444" }}>Please log in to register</p>
-      ) : null}
+      {!tokenPresent && !registerBlocked ? <p className="rsvp-msg text-muted">Log in to register for this event.</p> : null}
       {tokenPresent && !checkingRegistration && isRegistered && !isNonAttendee ? (
-        <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#444" }}>
-          You have already registered for this event.
-        </p>
+        <p className="rsvp-msg text-muted">You are registered for this event.</p>
       ) : null}
-      <button type="button" onClick={handleClick} disabled={disableButton} style={{ width: "100%" }}>
+      <button
+        type="button"
+        className="btn btn-primary btn-block"
+        onClick={handleClick}
+        disabled={disableButton}
+      >
         {buttonLabel}
       </button>
     </div>

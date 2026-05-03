@@ -22,24 +22,26 @@ export default function Navbar() {
     navigate("/login");
   };
 
+  const linkClass = ({ isActive }) => `nav-link ${isActive ? "nav-link--active" : ""}`;
+
   return (
-    <nav style={{ display: "flex", gap: "12px", alignItems: "center", padding: "12px", borderBottom: "1px solid #ddd" }}>
-      <strong>EventHub</strong>
-      <NavLink to="/events">Events</NavLink>
+    <nav className="top-nav">
+      <span className="top-nav__brand">EventHub</span>
+      <NavLink to="/events" className={linkClass}>
+        Events
+      </NavLink>
       {hasToken ? (
         <>
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <button
-            type="button"
-            onClick={handleLogout}
-            style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", marginLeft: "auto" }}
-          >
-            Logout
+          <NavLink to="/dashboard" className={linkClass}>
+            Dashboard
+          </NavLink>
+          <button type="button" className="nav-btn" onClick={handleLogout}>
+            Log out
           </button>
         </>
       ) : (
-        <NavLink to="/login" style={{ marginLeft: "auto" }}>
-          Login
+        <NavLink to="/login" className={({ isActive }) => `nav-link nav-link--push ${isActive ? "nav-link--active" : ""}`}>
+          Log in
         </NavLink>
       )}
     </nav>

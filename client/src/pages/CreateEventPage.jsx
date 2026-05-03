@@ -134,49 +134,50 @@ export default function CreateEventPage() {
     }
   };
 
-  const inputStyle = { width: "100%", padding: "8px", marginBottom: "10px", boxSizing: "border-box" };
-
   return (
-    <main style={{ padding: "16px", maxWidth: "720px" }}>
-      <p style={{ marginBottom: "12px" }}>
-        <Link to="/events">← Back to events</Link>
-      </p>
-      <section style={{ border: "1px solid #ddd", padding: "16px" }}>
-        <h2 style={{ marginTop: 0 }}>Create Event</h2>
-        <p style={{ marginTop: 0, color: "#555", fontSize: "14px" }}>
-          Submit for admin approval. Required: title, description, category, date, start time, end time, and capacity.
+    <main className="page page-narrow">
+      <Link to="/events" className="back-link">
+        ← Back to events
+      </Link>
+      <section className="card card-pad-lg">
+        <h1 className="page-title" style={{ marginBottom: "0.35rem" }}>
+          Create event
+        </h1>
+        <p className="page-lede" style={{ marginBottom: "1.25rem" }}>
+          Submit for admin approval. Required: title, description, category, date, start and end time, and capacity.
         </p>
 
-        <form onSubmit={onSubmit}>
-          <label htmlFor="evt-title" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+        <form onSubmit={onSubmit} className="form-stack">
+          <label htmlFor="evt-title" className="label">
             Title *
           </label>
           <input
             id="evt-title"
             type="text"
+            className="input field-gap"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={inputStyle}
           />
 
-          <label htmlFor="evt-desc" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+          <label htmlFor="evt-desc" className="label">
             Description *
           </label>
           <textarea
             id="evt-desc"
+            className="input textarea field-gap"
             required
             value={event_description}
             onChange={(e) => setEventDescription(e.target.value)}
             rows={5}
-            style={{ ...inputStyle, resize: "vertical" }}
           />
 
-          <label htmlFor="evt-cat" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+          <label htmlFor="evt-cat" className="label">
             Category *
           </label>
           <select
             id="evt-cat"
+            className="select field-gap"
             required
             value={categorySelect}
             onChange={(e) => {
@@ -185,7 +186,6 @@ export default function CreateEventPage() {
                 setOtherCategoryText("");
               }
             }}
-            style={inputStyle}
           >
             <option value="">Select a category</option>
             {categoryOptions.map((c) => (
@@ -198,119 +198,169 @@ export default function CreateEventPage() {
           {categorySelect === OTHER_CATEGORY ? (
             <input
               type="text"
+              className="input field-gap"
               required
               placeholder="Enter your category"
               value={otherCategoryText}
               onChange={(e) => setOtherCategoryText(e.target.value)}
-              style={inputStyle}
             />
           ) : null}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <div className="form-grid-2">
             <div>
-              <label htmlFor="evt-date" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+              <label htmlFor="evt-date" className="label">
                 Event date *
               </label>
-              <input id="evt-date" type="date" required value={event_date} onChange={(e) => setEventDate(e.target.value)} style={inputStyle} />
+              <input
+                id="evt-date"
+                type="date"
+                className="input field-gap"
+                required
+                value={event_date}
+                onChange={(e) => setEventDate(e.target.value)}
+              />
             </div>
             <div>
-              <label htmlFor="evt-cap" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+              <label htmlFor="evt-cap" className="label">
                 Capacity *
               </label>
               <input
                 id="evt-cap"
                 type="number"
+                className="input field-gap"
                 min={1}
                 required
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
-                style={inputStyle}
               />
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+          <div className="form-grid-2">
             <div>
-              <label htmlFor="evt-start" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+              <label htmlFor="evt-start" className="label">
                 Start time *
               </label>
-              <input id="evt-start" type="time" required value={start_time} onChange={(e) => setStartTime(e.target.value)} style={inputStyle} />
+              <input
+                id="evt-start"
+                type="time"
+                className="input field-gap"
+                required
+                value={start_time}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
             </div>
             <div>
-              <label htmlFor="evt-end" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+              <label htmlFor="evt-end" className="label">
                 End time *
               </label>
               <input
                 id="evt-end"
                 type="time"
+                className="input field-gap"
                 required
                 value={end_time}
                 onChange={(e) => setEndTime(e.target.value)}
-                style={inputStyle}
               />
             </div>
           </div>
 
-          <h3 style={{ fontSize: "16px", margin: "16px 0 8px" }}>Location (optional)</h3>
-          <input type="text" placeholder="Venue name" value={location_name} onChange={(e) => setLocationName(e.target.value)} style={inputStyle} />
-          <input type="text" placeholder="Address" value={location_address} onChange={(e) => setLocationAddress(e.target.value)} style={inputStyle} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-            <input type="text" placeholder="City" value={location_city} onChange={(e) => setLocationCity(e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="State" value={location_state} onChange={(e) => setLocationState(e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="ZIP" value={location_zip_code} onChange={(e) => setLocationZip(e.target.value)} style={inputStyle} />
+          <h3 className="detail-section-title" style={{ marginTop: "0.5rem" }}>
+            Location (optional)
+          </h3>
+          <input
+            type="text"
+            className="input field-gap"
+            placeholder="Venue name"
+            value={location_name}
+            onChange={(e) => setLocationName(e.target.value)}
+          />
+          <input
+            type="text"
+            className="input field-gap"
+            placeholder="Street address"
+            value={location_address}
+            onChange={(e) => setLocationAddress(e.target.value)}
+          />
+          <div className="form-grid-3">
+            <input
+              type="text"
+              className="input field-gap"
+              placeholder="City"
+              value={location_city}
+              onChange={(e) => setLocationCity(e.target.value)}
+            />
+            <input
+              type="text"
+              className="input field-gap"
+              placeholder="State"
+              value={location_state}
+              onChange={(e) => setLocationState(e.target.value)}
+            />
+            <input
+              type="text"
+              className="input field-gap"
+              placeholder="ZIP"
+              value={location_zip_code}
+              onChange={(e) => setLocationZip(e.target.value)}
+            />
           </div>
 
-          <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px", fontSize: "14px" }}>
+          <label className="filter-check field-gap">
             <input type="checkbox" checked={is_free} onChange={(e) => setIsFree(e.target.checked)} />
             Free event
           </label>
           {!is_free ? (
             <div>
-              <label htmlFor="evt-price" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+              <label htmlFor="evt-price" className="label">
                 Ticket price (USD)
               </label>
               <input
                 id="evt-price"
                 type="number"
+                className="input field-gap"
                 min={0}
                 step="0.01"
                 value={ticket_price}
                 onChange={(e) => setTicketPrice(e.target.value)}
-                style={inputStyle}
               />
             </div>
           ) : null}
 
-          <label htmlFor="evt-notes" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+          <label htmlFor="evt-notes" className="label">
             Schedule notes
           </label>
           <textarea
             id="evt-notes"
+            className="input textarea field-gap"
             value={schedule_notes}
             onChange={(e) => setScheduleNotes(e.target.value)}
             rows={3}
-            style={{ ...inputStyle, resize: "vertical" }}
           />
 
-          <label htmlFor="evt-cal" style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>
+          <label htmlFor="evt-cal" className="label">
             Calendar link
           </label>
           <input
             id="evt-cal"
             type="url"
+            className="input field-gap"
             placeholder="https://..."
             value={calendar_link}
             onChange={(e) => setCalendarLink(e.target.value)}
-            style={inputStyle}
           />
 
           {error ? (
-            <p style={{ color: "#b00020", fontSize: "14px", margin: "8px 0" }}>{error}</p>
+            <p className="text-error" style={{ margin: "0.5rem 0" }}>
+              {error}
+            </p>
           ) : null}
 
-          <button type="submit" disabled={submitting} style={{ padding: "10px 18px", marginTop: "8px", cursor: submitting ? "wait" : "pointer" }}>
-            {submitting ? "Creating…" : "Submit event"}
-          </button>
+          <div className="form-actions">
+            <button type="submit" disabled={submitting} className="btn btn-primary">
+              {submitting ? "Creating…" : "Submit event"}
+            </button>
+          </div>
         </form>
       </section>
     </main>
