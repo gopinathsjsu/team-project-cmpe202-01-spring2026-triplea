@@ -8,6 +8,8 @@ const {
 const {
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
+  notifyRegistrationCancelled,
+  notifyEventDeleted,
 } = require("../utils/notificationService");
 const { generateGoogleCalendarLink, generateGoogleMapsSearchLink } = require("../utils/calendarUtils");
 
@@ -954,7 +956,32 @@ async function deleteEvent(req, res, next) {
       return errorResponse(res, 403, "You can only delete your own events");
     }
 
+    const attendeesResult = await pool.query(
+      `
+      SELECT u.id, u.full_name, u.email
+      FROM registrations r
+      JOIN users u ON u.id = r.user_id
+      WHERE r.event_id = $1
+        AND r.registration_status = 'registered'
+      `,
+      [id]
+    );
+
+    const attendees = attendeesResult.rows;
+
     await pool.query(`DELETE FROM events WHERE id = $1`, [id]);
+    
+    for (const attendee of attendeesResult.rows) {
+      try {
+        await notifyEventDeleted({
+          attendee,
+          event: eventToDelete,
+        });
+      } catch (notificationError) {
+        console.error("Event deleted notification failed:", notificationError.message);
+      }
+    }
+
     return successResponse(res, null, "Event deleted successfully");
   } catch (error) {
     return next(error);
@@ -1138,6 +1165,24 @@ async function unregisterFromEvent(req, res, next) {
     const { id: eventId } = req.params;
     const userId = req.user.userId;
 
+    const eventResult = await pool.query(
+      `
+      SELECT id, title, event_date, start_time
+      FROM events
+      WHERE id = $1
+      `,
+      [eventId]
+    );
+    
+    const attendeeResult = await pool.query(
+      `
+      SELECT id, full_name, email
+      FROM users
+      WHERE id = $1
+      `,
+      [userId]
+    );
+
     const result = await pool.query(
       `
       UPDATE registrations
@@ -1153,6 +1198,15 @@ async function unregisterFromEvent(req, res, next) {
 
     if (result.rows.length === 0) {
       return errorResponse(res, 404, "No active registration found for this event");
+    }
+
+    try {
+      await notifyRegistrationCancelled({
+        attendee: attendeeResult.rows[0],
+        event: eventResult.rows[0],
+      });
+    } catch (notificationError) {
+      console.error("Unregister notification failed:", notificationError.message);
     }
 
     return successResponse(res, null, "Unregistered successfully");
