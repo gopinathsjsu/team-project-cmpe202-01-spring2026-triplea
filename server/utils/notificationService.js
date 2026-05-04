@@ -73,8 +73,76 @@ async function notifyEventApprovalStatus({ organizer, event, status }) {
   });
 }
 
+async function notifyRegistrationCancelled({ attendee, event }) {
+  const message = `You have successfully unregistered from "${event.title}".`;
+
+  await createNotification({
+    userId: attendee.id,
+    eventId: event.id,
+    type: "registration_cancelled",
+    message,
+  });
+
+  await sendEmail({
+    to: attendee.email,
+    subject: `Unregistered from: ${event.title}`,
+    text: message,
+    html: `
+      <h2>Registration Cancelled</h2>
+      <p>${message}</p>
+    `,
+  });
+}
+
+async function notifyEventDeleted({ attendee, event }) {
+  const message = `The event "${event.title}" has been deleted. Your registration is no longer active.`;
+
+  await createNotification({
+    userId: attendee.id,
+    eventId: null,
+    type: "event_deleted",
+    message,
+  });
+
+  await sendEmail({
+    to: attendee.email,
+    subject: `Event deleted: ${event.title}`,
+    text: message,
+    html: `
+      <h2>Event Deleted</h2>
+      <p>${message}</p>
+    `,
+  });
+}
+
+async function notifyEventReminder({ attendee, event }) {
+  const message = `Reminder: "${event.title}" is happening tomorrow.`;
+
+  await createNotification({
+    userId: attendee.id,
+    eventId: event.id,
+    type: "event_reminder",
+    message,
+  });
+
+  await sendEmail({
+    to: attendee.email,
+    subject: `Reminder: ${event.title} is tomorrow`,
+    text: message,
+    html: `
+      <h2>Event Reminder</h2>
+      <p>${message}</p>
+      <p><strong>Date:</strong> ${event.event_date}</p>
+      <p><strong>Time:</strong> ${event.start_time}</p>
+    `,
+  });
+}
+
 module.exports = {
   createNotification,
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
+  notifyRegistrationCancelled,
+  notifyEventDeleted,
+  notifyEventReminder,
 };

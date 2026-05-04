@@ -6,6 +6,7 @@ const pool = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const { errorHandler } = require("./middleware/errorHandler");
+const { startEventReminderJob } = require("./jobs/eventReminderJob");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -39,4 +40,5 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
+  startEventReminderJob();
 });
