@@ -9,6 +9,7 @@ const {
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
 } = require("../utils/notificationService");
+const { generateGoogleCalendarLink, generateGoogleMapsSearchLink } = require("../utils/calendarUtils");
 
 const isValidEventDate = (eventDate) => {
   if (typeof eventDate !== "string") {
@@ -617,6 +618,8 @@ async function getEventById(req, res, next) {
     }
 
     const eventRow = result.rows[0];
+    eventRow.google_calendar_link = generateGoogleCalendarLink(eventRow);
+    eventRow.google_maps_link = generateGoogleMapsSearchLink(eventRow);
     const viewer = req.optionalUser;
     const canViewUnrestricted =
       viewer?.role === "admin" ||
@@ -965,7 +968,20 @@ async function registerForEvent(req, res, next) {
 
     const eventResult = await pool.query(
       `
-      SELECT id, title, event_date, start_time, capacity, approval_status
+      SELECT
+        id,
+        title,
+        event_description,
+        event_date,
+        start_time,
+        end_time,
+        location_name,
+        location_address,
+        location_city,
+        location_state,
+        location_zip_code,
+        capacity,
+        approval_status
       FROM events
       WHERE id = $1
       `,
@@ -1035,7 +1051,17 @@ async function registerForEvent(req, res, next) {
         console.error("Registration notification failed:", notificationError.message)
       }
       
-      return successResponse(res, revivedResult.rows[0], "RSVP registration successful", 200);
+      const googleCalendarLink = generateGoogleCalendarLink(eventResult.rows[0]);
+      
+      return successResponse(
+        res,
+        {
+          registration: revivedResult.rows[0],
+          google_calendar_link: googleCalendarLink,
+        },
+        "RSVP registration successful",
+        200
+      );
     }
 
     const registrationResult = await pool.query(
@@ -1061,9 +1087,14 @@ async function registerForEvent(req, res, next) {
       console.error("Registration notification failed:", notificationError.message)
     }
 
+    const googleCalendarLink = generateGoogleCalendarLink(eventResult.rows[0]);
+
     return successResponse(
       res,
-      registrationResult.rows[0],
+      {
+        registration: registrationResult.rows[0],
+        google_calendar_link: googleCalendarLink,
+      },
       "RSVP registration successful",
       201
     );

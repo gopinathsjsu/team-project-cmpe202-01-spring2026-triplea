@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
+import EventMap from "../components/EventMap";
 import { approveEventById, deleteEventById, getEventAttendees, getEventById, rejectEventById } from "../services/eventService";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
@@ -206,6 +207,15 @@ export default function EventDetailPage() {
     [event.location_city, event.location_state, event.location_zip_code].filter(Boolean).join(", ") || null,
   ].filter(Boolean);
 
+  const openCalendarLink = () => {
+  if (!event?.google_calendar_link) {
+    window.alert("Calendar link is not available for this event.");
+    return;
+  }
+
+  window.open(event.google_calendar_link, "_blank", "noopener,noreferrer");
+};
+
   const handleApproveEvent = async () => {
     const token = localStorage.getItem("token");
     if (!token || !event?.id) {
@@ -340,6 +350,8 @@ export default function EventDetailPage() {
             </p>
           )}
 
+          <EventMap event={event} />
+
           <hr className="divider" />
 
           <p style={{ margin: "0 0 0.35rem" }}>
@@ -454,8 +466,14 @@ export default function EventDetailPage() {
               {deleteLoading ? "Deleting…" : "Delete event"}
             </button>
           ) : null}
-          <button type="button" className="btn btn-secondary btn-block" style={{ marginTop: "0.5rem" }}>
-            Add to calendar
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            style={{ marginTop: "0.5rem" }}
+            onClick={openCalendarLink}
+            disabled={!event.google_calendar_link}
+          >
+            Add to Google Calendar
           </button>
         </aside>
       </div>

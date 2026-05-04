@@ -23,6 +23,7 @@ export default function RSVPButton({
   const [checkingRegistration, setCheckingRegistration] = useState(initialCheckingRegistration);
   const [isRegistered, setIsRegistered] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [calendarLink, setCalendarLink] = useState(null);
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const tokenRole = token ? decodeJwtPayload(token)?.role : null;
@@ -83,10 +84,16 @@ export default function RSVPButton({
 
     setActionLoading(true);
     try {
-      await registerForEvent(eventId, t);
-      window.alert("RSVP registration successful");
-      setIsRegistered(true);
-      await onSuccess?.();
+      const res = await registerForEvent(eventId, t);
+      const link =
+        res?.data?.google_calendar_link ||
+        res?.data?.calendar_link ||
+        null;
+      
+        setCalendarLink(link);
+        window.alert("RSVP registration successful");
+        setIsRegistered(true);
+        await onSuccess?.();
     } catch (error) {
       window.alert(error?.message || "RSVP failed");
     } finally {
@@ -104,6 +111,7 @@ export default function RSVPButton({
     try {
       await unregisterFromEvent(eventId, t);
       window.alert("You have been unregistered from this event");
+      setCalendarLink(null);
       setIsRegistered(false);
       await onSuccess?.();
     } catch (error) {
@@ -144,6 +152,17 @@ export default function RSVPButton({
       {!tokenPresent && !registerBlocked ? <p className="rsvp-msg text-muted">Log in to register for this event.</p> : null}
       {tokenPresent && !checkingRegistration && isRegistered && !isNonAttendee ? (
         <p className="rsvp-msg text-muted">You are registered for this event.</p>
+      ) : null}
+      {calendarLink ? (
+        <a
+          href={calendarLink}
+          target="_blank"
+          rel="noreferrer"
+          className="btn btn-secondary btn-block"
+          style={{ marginBottom: "0.5rem" }}
+        >
+          Save to Google Calendar
+        </a>
       ) : null}
       <button
         type="button"
