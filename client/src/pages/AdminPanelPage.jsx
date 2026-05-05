@@ -36,8 +36,14 @@ export default function AdminPanelPage() {
             <button type="button" className="btn btn-ghost">
               Rejected
             </button>
-            <input type="text" className="search-input" placeholder="Search events…" style={{ maxWidth: "220px", marginLeft: "auto" }} />
-            <select className="select" style={{ maxWidth: "140px" }}>
+            <label htmlFor="admin-event-search" className="sr-only">
+              Search events
+            </label>
+            <input id="admin-event-search" type="text" className="search-input" placeholder="Search events…" style={{ maxWidth: "220px", marginLeft: "auto" }} />
+            <label htmlFor="admin-status-filter" className="sr-only">
+              Filter events by status
+            </label>
+            <select id="admin-status-filter" className="select" style={{ maxWidth: "140px" }}>
               <option>Pending</option>
               <option>Approved</option>
               <option>Rejected</option>

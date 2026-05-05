@@ -202,7 +202,7 @@ export default function CreateEventPage() {
   if (loadingEvent) {
     return (
       <main className="page page-narrow">
-        <p className="text-muted loading-shimmer">Loading event…</p>
+        <p className="text-muted loading-shimmer" role="status" aria-live="polite">Loading event…</p>
       </main>
     );
   }
@@ -343,14 +343,22 @@ export default function CreateEventPage() {
           <h3 className="detail-section-title" style={{ marginTop: "0.5rem" }}>
             Location (optional)
           </h3>
+          <label htmlFor="evt-location-name" className="sr-only">
+            Venue name
+          </label>
           <input
+            id="evt-location-name"
             type="text"
             className="input field-gap"
             placeholder="Venue name"
             value={location_name}
             onChange={(e) => setLocationName(e.target.value)}
           />
+          <label htmlFor="evt-location-address" className="sr-only">
+            Street address
+          </label>
           <input
+            id="evt-location-address"
             type="text"
             className="input field-gap"
             placeholder="Street address"
@@ -358,27 +366,45 @@ export default function CreateEventPage() {
             onChange={(e) => setLocationAddress(e.target.value)}
           />
           <div className="form-grid-3">
+            <div>
+              <label htmlFor="evt-location-city" className="sr-only">
+                City
+              </label>
             <input
+              id="evt-location-city"
               type="text"
               className="input field-gap"
               placeholder="City"
               value={location_city}
               onChange={(e) => setLocationCity(e.target.value)}
             />
+            </div>
+            <div>
+              <label htmlFor="evt-location-state" className="sr-only">
+                State
+              </label>
             <input
+              id="evt-location-state"
               type="text"
               className="input field-gap"
               placeholder="State"
               value={location_state}
               onChange={(e) => setLocationState(e.target.value)}
             />
+            </div>
+            <div>
+              <label htmlFor="evt-location-zip" className="sr-only">
+                ZIP code
+              </label>
             <input
+              id="evt-location-zip"
               type="text"
               className="input field-gap"
               placeholder="ZIP"
               value={location_zip_code}
               onChange={(e) => setLocationZip(e.target.value)}
             />
+            </div>
           </div>
 
           <label htmlFor="evt-notes" className="label">
@@ -405,7 +431,7 @@ export default function CreateEventPage() {
           />
 
           {error ? (
-            <p className="text-error" style={{ margin: "0.5rem 0" }}>
+            <p className="text-error" role="alert" style={{ margin: "0.5rem 0" }}>
               {error}
             </p>
           ) : null}

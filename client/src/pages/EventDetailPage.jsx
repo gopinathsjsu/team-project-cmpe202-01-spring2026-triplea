@@ -172,7 +172,7 @@ export default function EventDetailPage() {
   if (loading) {
     return (
       <main className="page">
-        <p className="text-muted loading-shimmer">Loading event…</p>
+        <p className="text-muted loading-shimmer" role="status" aria-live="polite">Loading event…</p>
       </main>
     );
   }
@@ -180,7 +180,7 @@ export default function EventDetailPage() {
   if (error) {
     return (
       <main className="page">
-        <p className="text-error">{error}</p>
+        <p className="text-error" role="alert">{error}</p>
         <p>
           <Link to="/events">← Back to current events</Link>
         </p>
@@ -191,7 +191,7 @@ export default function EventDetailPage() {
   if (!event) {
     return (
       <main className="page">
-        <p>No event data available.</p>
+        <p role="status">No event data available.</p>
         <p>
           <Link to="/events">← Back to current events</Link>
         </p>
@@ -319,11 +319,11 @@ export default function EventDetailPage() {
           {canSeeAttendees ? (
             <section style={{ marginTop: "1.25rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
               <div className="detail-section-title">RSVP attendees</div>
-              {attendeesLoading ? <p className="text-muted">Loading attendee list…</p> : null}
-              {attendeesError ? <p className="text-error">{attendeesError}</p> : null}
+              {attendeesLoading ? <p className="text-muted" role="status" aria-live="polite">Loading attendee list…</p> : null}
+              {attendeesError ? <p className="text-error" role="alert">{attendeesError}</p> : null}
               {!attendeesLoading && !attendeesError ? (
                 attendees.length === 0 ? (
-                  <p className="text-muted">No attendees yet.</p>
+                  <p className="text-muted" role="status">No attendees yet.</p>
                 ) : (
                   <ul style={{ margin: 0, paddingLeft: "1.25rem", display: "grid", gap: "0.35rem" }}>
                     {attendees.map((user) => (
@@ -406,10 +406,11 @@ export default function EventDetailPage() {
               ) : null}
               {adminCanDisapprove && rejectFormOpen ? (
                 <div className="detail-actions">
-                  <label className="label" style={{ fontSize: "0.8125rem" }}>
+                  <label htmlFor="event-rejection-comment" className="label" style={{ fontSize: "0.8125rem" }}>
                     Comment for organizer (required)
                   </label>
                   <textarea
+                    id="event-rejection-comment"
                     className="input textarea"
                     value={rejectDraft}
                     onChange={(e) => setRejectDraft(e.target.value)}

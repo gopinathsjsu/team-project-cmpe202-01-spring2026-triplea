@@ -269,7 +269,7 @@ export default function DashboardPage() {
   const renderEventRows = (list, options = {}) => {
     const { showRejectedReason = false, showApprovalStatus = true } = options;
     if (list.length === 0) {
-      return <p className="text-muted">No events.</p>;
+      return <p className="text-muted" role="status">No events.</p>;
     }
     return (
       <div style={{ display: "grid", gap: "0.5rem" }}>
@@ -287,7 +287,7 @@ export default function DashboardPage() {
               </p>
             ) : null}
             {showRejectedReason && ev.approval_status === "rejected" && ev.rejection_reason?.trim() ? (
-              <p className="text-error" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
+              <p className="text-error" role="status" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
                 <strong>Admin note:</strong> {ev.rejection_reason.trim()}
               </p>
             ) : null}
@@ -344,8 +344,8 @@ export default function DashboardPage() {
             <div className="dash-stat">Disapproved: {organizerDisapprovedEvents.length}</div>
           </div>
 
-          {createdLoading ? <p className="text-muted">Loading your events…</p> : null}
-          {createdError ? <p className="text-error">{createdError}</p> : null}
+          {createdLoading ? <p className="text-muted" role="status" aria-live="polite">Loading your events…</p> : null}
+          {createdError ? <p className="text-error" role="alert">{createdError}</p> : null}
 
           <section id="my-pending" className="card card-pad dash-section">
             <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
@@ -421,8 +421,8 @@ export default function DashboardPage() {
             <div className="dash-stat">Past: {past.length}</div>
           </div>
 
-          {registeredLoading ? <p className="text-muted">Loading your registrations…</p> : null}
-          {registeredError ? <p className="text-error">{registeredError}</p> : null}
+          {registeredLoading ? <p className="text-muted" role="status" aria-live="polite">Loading your registrations…</p> : null}
+          {registeredError ? <p className="text-error" role="alert">{registeredError}</p> : null}
 
           <section id="reg-upcoming" className="card card-pad dash-section">
             <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
@@ -597,11 +597,11 @@ export default function DashboardPage() {
             <h3 id="pending-events" className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
               Pending events
             </h3>
-            {pendingLoading ? <p className="text-muted">Loading pending events…</p> : null}
-            {pendingError ? <p className="text-error">{pendingError}</p> : null}
+            {pendingLoading ? <p className="text-muted" role="status" aria-live="polite">Loading pending events…</p> : null}
+            {pendingError ? <p className="text-error" role="alert">{pendingError}</p> : null}
             {!pendingLoading && !pendingError ? (
               pendingEvents.length === 0 ? (
-                <p className="text-muted">No pending events.</p>
+                <p className="text-muted" role="status">No pending events.</p>
               ) : (
                 <div style={{ display: "grid", gap: "0.5rem" }}>
                   {pendingEvents.map((ev) => (
@@ -637,10 +637,11 @@ export default function DashboardPage() {
                       </div>
                       {rejectingEventId === ev.id ? (
                         <div className="detail-actions" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
-                          <label className="label" style={{ fontSize: "0.8125rem" }}>
+                          <label htmlFor={`reject-event-${ev.id}`} className="label" style={{ fontSize: "0.8125rem" }}>
                             Comment for organizer (required)
                           </label>
                           <textarea
+                            id={`reject-event-${ev.id}`}
                             className="input textarea"
                             value={rejectCommentDraft}
                             onChange={(e) => setRejectCommentDraft(e.target.value)}
@@ -682,11 +683,11 @@ export default function DashboardPage() {
               Pending event updates
             </h3>
             <p className="page-lede">Edits to already approved events. The old approved details stay public until approval.</p>
-            {pendingUpdatesLoading ? <p className="text-muted">Loading pending updates…</p> : null}
-            {pendingUpdatesError ? <p className="text-error">{pendingUpdatesError}</p> : null}
+            {pendingUpdatesLoading ? <p className="text-muted" role="status" aria-live="polite">Loading pending updates…</p> : null}
+            {pendingUpdatesError ? <p className="text-error" role="alert">{pendingUpdatesError}</p> : null}
             {!pendingUpdatesLoading && !pendingUpdatesError ? (
               pendingEventUpdates.length === 0 ? (
-                <p className="text-muted">No pending event updates.</p>
+                <p className="text-muted" role="status">No pending event updates.</p>
               ) : (
                 <div style={{ display: "grid", gap: "0.5rem" }}>
                   {pendingEventUpdates.map((req) => (
@@ -725,10 +726,11 @@ export default function DashboardPage() {
                       </div>
                       {rejectingUpdateId === req.update_request_id ? (
                         <div className="detail-actions" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
-                          <label className="label" style={{ fontSize: "0.8125rem" }}>
+                          <label htmlFor={`reject-update-${req.update_request_id}`} className="label" style={{ fontSize: "0.8125rem" }}>
                             Comment for organizer (required)
                           </label>
                           <textarea
+                            id={`reject-update-${req.update_request_id}`}
                             className="input textarea"
                             value={rejectUpdateCommentDraft}
                             onChange={(e) => setRejectUpdateCommentDraft(e.target.value)}
@@ -770,11 +772,11 @@ export default function DashboardPage() {
               Disapproved events
             </h3>
             <p className="page-lede">Submissions that were rejected.</p>
-            {allAdminLoading ? <p className="text-muted">Loading…</p> : null}
-            {allAdminError ? <p className="text-error">{allAdminError}</p> : null}
+            {allAdminLoading ? <p className="text-muted" role="status" aria-live="polite">Loading…</p> : null}
+            {allAdminError ? <p className="text-error" role="alert">{allAdminError}</p> : null}
             {!allAdminLoading && !allAdminError ? (
               adminDisapprovedEvents.length === 0 ? (
-                <p className="text-muted">No disapproved events.</p>
+                <p className="text-muted" role="status">No disapproved events.</p>
               ) : (
                 <div style={{ display: "grid", gap: "0.5rem" }}>
                   {adminDisapprovedEvents.map((ev) => (
@@ -804,11 +806,11 @@ export default function DashboardPage() {
             <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
               All events
             </h3>
-            {allAdminLoading ? <p className="text-muted">Loading all events…</p> : null}
-            {allAdminError ? <p className="text-error">{allAdminError}</p> : null}
+            {allAdminLoading ? <p className="text-muted" role="status" aria-live="polite">Loading all events…</p> : null}
+            {allAdminError ? <p className="text-error" role="alert">{allAdminError}</p> : null}
             {!allAdminLoading && !allAdminError ? (
               allAdminEvents.length === 0 ? (
-                <p className="text-muted">No events.</p>
+                <p className="text-muted" role="status">No events.</p>
               ) : (
                 <div style={{ display: "grid", gap: "0.5rem" }}>
                   {allAdminEvents.map((ev) => (
@@ -844,10 +846,11 @@ export default function DashboardPage() {
                       </div>
                       {rejectingEventId === `all-${ev.id}` ? (
                         <div className="detail-actions" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
-                          <label className="label" style={{ fontSize: "0.8125rem" }}>
+                          <label htmlFor={`reject-all-event-${ev.id}`} className="label" style={{ fontSize: "0.8125rem" }}>
                             Comment for organizer (required)
                           </label>
                           <textarea
+                            id={`reject-all-event-${ev.id}`}
                             className="input textarea"
                             value={rejectCommentDraft}
                             onChange={(e) => setRejectCommentDraft(e.target.value)}

@@ -69,10 +69,12 @@ export default function LoginPage() {
 
       <section className="login-panel-wrap">
         <div className="card login-card">
-          <div className="login-tabs">
+          <div className="login-tabs" role="tablist" aria-label="Authentication mode">
             <button
               type="button"
               className={`login-tab ${activeTab === "login" ? "login-tab--active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "login"}
               onClick={() => {
                 setActiveTab("login");
                 setLoginError("");
@@ -83,6 +85,8 @@ export default function LoginPage() {
             <button
               type="button"
               className={`login-tab ${activeTab === "register" ? "login-tab--active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "register"}
               onClick={() => {
                 setActiveTab("register");
                 setLoginError("");
@@ -92,7 +96,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <form onSubmit={onSubmit} className="form-stack">
+          <form onSubmit={onSubmit} className="form-stack" aria-describedby={loginError ? "login-error" : undefined}>
             {activeTab === "register" ? (
               <>
                 <label htmlFor="name" className="label">
@@ -163,7 +167,7 @@ export default function LoginPage() {
               {activeTab === "login" ? "Log in" : "Create account"}
             </button>
             {loginError ? (
-              <p className="text-error" style={{ margin: "0.75rem 0 0", fontSize: "0.875rem" }}>
+              <p id="login-error" className="text-error" role="alert" style={{ margin: "0.75rem 0 0", fontSize: "0.875rem" }}>
                 {loginError}
               </p>
             ) : null}

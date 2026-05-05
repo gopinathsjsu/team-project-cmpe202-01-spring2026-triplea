@@ -180,10 +180,10 @@ export default function EventListPage() {
             Browse upcoming campus and community events (today and later). Past events you joined appear on your
             dashboard under Past events.
           </p>
-          {loading ? <p className="text-muted">Loading events…</p> : null}
-          {error ? <p className="text-error">{error}</p> : null}
+          {loading ? <p className="text-muted" role="status" aria-live="polite">Loading events…</p> : null}
+          {error ? <p className="text-error" role="alert">{error}</p> : null}
           {!loading && !error && events.length === 0 ? (
-            <p className="text-muted">No current events match your filters.</p>
+            <p className="text-muted" role="status">No current events match your filters.</p>
           ) : null}
           {!loading && !error && events.length > 0 ? (
             <div className="event-grid">
