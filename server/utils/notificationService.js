@@ -94,6 +94,28 @@ async function notifyRegistrationCancelled({ attendee, event }) {
   });
 }
 
+async function notifyAttendeeRemovedFromEvent({ attendee, event, reason }) {
+  const message = `You have been removed from "${event.title}". Reason: ${reason}`;
+
+  await createNotification({
+    userId: attendee.id,
+    eventId: event.id,
+    type: "attendee_removed",
+    message,
+  });
+
+  await sendEmail({
+    to: attendee.email,
+    subject: `You have been removed from: ${event.title}`,
+    text: message,
+    html: `
+      <h2>You Have Been Removed</h2>
+      <p>You have been removed from <strong>${event.title}</strong>.</p>
+      <p><strong>Reason:</strong> ${reason}</p>
+    `,
+  });
+}
+
 async function notifyEventDeleted({ attendee, event }) {
   const message = `The event "${event.title}" has been deleted. Your registration is no longer active.`;
 
@@ -143,6 +165,7 @@ module.exports = {
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
   notifyRegistrationCancelled,
+  notifyAttendeeRemovedFromEvent,
   notifyEventDeleted,
   notifyEventReminder,
 };

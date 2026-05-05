@@ -63,6 +63,8 @@ CREATE TABLE registrations (
         CHECK (registration_status IN ('registered', 'cancelled')),
     registered_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     cancelled_at TIMESTAMPTZ,
+    removal_reason TEXT,
+    removed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, event_id)
@@ -77,7 +79,10 @@ CREATE TABLE notifications (
             'registration_confirmation',
             'approval_notification',
             'rejection_notification',
-            'event_reminder'
+            'event_reminder',
+            'registration_cancelled',
+            'event_deleted',
+            'attendee_removed'
         )
     ),
     notif_message TEXT NOT NULL,

@@ -264,6 +264,25 @@ export async function getEventAttendees(id, token) {
   return data;
 }
 
+export async function removeEventAttendee(eventId, attendeeId, token, payload) {
+  const removal_reason =
+    typeof payload?.removal_reason === "string" ? payload.removal_reason : "";
+  const response = await fetch(`http://localhost:5000/api/events/${eventId}/attendees/${attendeeId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ removal_reason }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to remove attendee");
+  }
+  return data;
+}
+
 export async function getRsvpStatus(id, token) {
   const response = await fetch(`http://localhost:5000/api/events/${id}/rsvp-status`, {
     headers: {

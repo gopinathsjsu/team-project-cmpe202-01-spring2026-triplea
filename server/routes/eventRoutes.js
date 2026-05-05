@@ -23,6 +23,7 @@ const {
   registerForEvent,
   getMyRsvpStatus,
   unregisterFromEvent,
+  removeAttendeeFromEvent,
   approveEvent,
   approveEventUpdate,
   rejectEvent,
@@ -54,6 +55,13 @@ router.get("/:id", authenticateTokenOptional, validateEventIdParam, getEventById
 router.post("/", authenticateToken, authorizeRoles("organizer", "admin"), createEvent);
 router.post("/:id/rsvp", authenticateToken, authorizeRoles("attendee"), validateEventIdParam, registerForEvent);
 router.delete("/:id/rsvp", authenticateToken, authorizeRoles("attendee"), validateEventIdParam, unregisterFromEvent);
+router.delete(
+  "/:id/attendees/:attendeeId",
+  authenticateToken,
+  authorizeRoles("organizer", "admin"),
+  validateEventIdParam,
+  removeAttendeeFromEvent
+);
 router.put("/updates/:id/approve", authenticateToken, authorizeRoles("admin"), validateEventIdParam, approveEventUpdate);
 router.put("/updates/:id/reject", authenticateToken, authorizeRoles("admin"), validateEventIdParam, rejectEventUpdate);
 router.put("/:id/approve", authenticateToken, authorizeRoles("admin"), validateEventIdParam, approveEvent);

@@ -8,6 +8,7 @@ const {
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
   notifyRegistrationCancelled,
+  notifyAttendeeRemovedFromEvent,
   notifyEventDeleted,
 } = require("../utils/notificationService");
 const { generateGoogleCalendarLink, generateGoogleMapsSearchLink } = require("../utils/calendarUtils");
@@ -778,6 +779,28 @@ async function getEventById(req, res, next) {
       delete eventRow.latest_update_rejected_at;
     }
 
+    if (viewer?.role === "attendee" && viewer.userId != null) {
+      const removalResult = await pool.query(
+        `
+        SELECT removal_reason, cancelled_at
+        FROM registrations
+        WHERE event_id = $1
+          AND user_id = $2
+          AND registration_status = 'cancelled'
+          AND removal_reason IS NOT NULL
+          AND BTRIM(removal_reason) <> ''
+        ORDER BY updated_at DESC
+        LIMIT 1
+        `,
+        [id, viewer.userId]
+      );
+
+      if (removalResult.rows.length > 0) {
+        eventRow.attendee_removal_reason = removalResult.rows[0].removal_reason;
+        eventRow.attendee_removed_at = removalResult.rows[0].cancelled_at;
+      }
+    }
+
     return successResponse(res, eventRow, "Event fetched successfully");
   } catch (error) {
     return next(error);
@@ -1193,6 +1216,8 @@ async function registerForEvent(req, res, next) {
         SET
           registration_status = 'registered',
           cancelled_at = NULL,
+          removal_reason = NULL,
+          removed_by = NULL,
           updated_at = CURRENT_TIMESTAMP
         WHERE user_id = $1 AND event_id = $2
         RETURNING *
@@ -1325,6 +1350,8 @@ async function unregisterFromEvent(req, res, next) {
       SET
         registration_status = 'cancelled',
         cancelled_at = CURRENT_TIMESTAMP,
+        removal_reason = NULL,
+        removed_by = NULL,
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = $1 AND event_id = $2 AND registration_status = 'registered'
       RETURNING id
@@ -1346,6 +1373,112 @@ async function unregisterFromEvent(req, res, next) {
     }
 
     return successResponse(res, null, "Unregistered successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function removeAttendeeFromEvent(req, res, next) {
+  try {
+    const { id: eventId, attendeeId } = req.params;
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const rawReason =
+      hasOwn(body, "removal_reason") && body.removal_reason !== undefined
+        ? body.removal_reason
+        : hasOwn(body, "reason") && body.reason !== undefined
+          ? body.reason
+          : undefined;
+
+    if (rawReason !== undefined && rawReason !== null && typeof rawReason !== "string") {
+      return errorResponse(res, 400, "Removal reason is required as non-empty text");
+    }
+
+    const removalReason = typeof rawReason === "string" ? rawReason.trim() : "";
+    if (!removalReason) {
+      return errorResponse(res, 400, "Removal reason is required");
+    }
+    if (removalReason.length > MAX_REJECTION_REASON_LENGTH) {
+      return errorResponse(
+        res,
+        400,
+        `Removal reason must be at most ${MAX_REJECTION_REASON_LENGTH} characters`
+      );
+    }
+
+    const attendeeNumericId = Number(attendeeId);
+    if (!Number.isInteger(attendeeNumericId) || attendeeNumericId <= 0) {
+      return errorResponse(res, 400, "Invalid attendee id");
+    }
+
+    const eventResult = await pool.query(
+      `
+      SELECT id, title, event_date, start_time, organizer_id
+      FROM events
+      WHERE id = $1
+      `,
+      [eventId]
+    );
+
+    if (eventResult.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const event = eventResult.rows[0];
+    if (req.user.role !== "admin" && Number(event.organizer_id) !== Number(req.user.userId)) {
+      return errorResponse(res, 403, "You can only remove attendees from your own events");
+    }
+
+    const attendeeResult = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.full_name,
+        u.email,
+        r.id AS registration_id
+      FROM users u
+      JOIN registrations r ON r.user_id = u.id
+      WHERE u.id = $1
+        AND r.event_id = $2
+        AND r.registration_status = 'registered'
+      `,
+      [attendeeNumericId, eventId]
+    );
+
+    if (attendeeResult.rows.length === 0) {
+      return errorResponse(res, 404, "No active registration found for this attendee");
+    }
+
+    const attendee = attendeeResult.rows[0];
+    const result = await pool.query(
+      `
+      UPDATE registrations
+      SET
+        registration_status = 'cancelled',
+        cancelled_at = CURRENT_TIMESTAMP,
+        removal_reason = $2,
+        removed_by = $3,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+      `,
+      [attendee.registration_id, removalReason, req.user.userId]
+    );
+
+    try {
+      await notifyAttendeeRemovedFromEvent({
+        attendee,
+        event,
+        reason: removalReason,
+      });
+    } catch (notificationError) {
+      console.error("Attendee removal notification failed:", notificationError.message);
+    }
+
+    return successResponse(
+      res,
+      { registration: result.rows[0], removed_attendee_id: attendee.id },
+      "Attendee removed from event successfully"
+    );
   } catch (error) {
     return next(error);
   }
@@ -1694,6 +1827,7 @@ module.exports = {
   registerForEvent,
   getMyRsvpStatus,
   unregisterFromEvent,
+  removeAttendeeFromEvent,
   approveEvent,
   approveEventUpdate,
   rejectEvent,

@@ -1,0 +1,5 @@
+ALTER TABLE registrations
+  ADD COLUMN IF NOT EXISTS removal_reason TEXT;
+
+ALTER TABLE registrations
+  ADD COLUMN IF NOT EXISTS removed_by BIGINT REFERENCES users(id) ON DELETE SET NULL;
