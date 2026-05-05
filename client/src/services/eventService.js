@@ -105,7 +105,7 @@ export async function getPastEventsForAdmin(filters = {}) {
 }
 
 export async function getEventCategories() {
-  const response = await fetch('${API_BASE_URL}/api/events/categories');
+  const response = await fetch(`${API_BASE_URL}/api/events/categories`);
 
   if (!response.ok) {
     let message = "Failed to fetch categories";
@@ -124,7 +124,7 @@ export async function getEventCategories() {
 }
 
 export async function createEvent(body, token) {
-  const response = await fetch('${API_BASE_URL}/api/events', {
+  const response = await fetch(`${API_BASE_URL}/api/events`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -141,7 +141,7 @@ export async function createEvent(body, token) {
 }
 
 export async function updateEventById(id, body, token) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -158,7 +158,7 @@ export async function updateEventById(id, body, token) {
 }
 
 export async function getMyEvents(token) {
-  const response = await fetch('${API_BASE_URL}/api/events/my-events', {
+  const response = await fetch(`${API_BASE_URL}/api/events/my-events`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -172,7 +172,7 @@ export async function getMyEvents(token) {
 }
 
 export async function getMyRegisteredEvents(token) {
-  const response = await fetch('${API_BASE_URL}/api/events/my-registrations', {
+  const response = await fetch(`${API_BASE_URL}/api/events/my-registrations`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -186,7 +186,7 @@ export async function getMyRegisteredEvents(token) {
 }
 
 export async function getPendingEvents(token) {
-  const response = await fetch('${API_BASE_URL}/api/events/pending', {
+  const response = await fetch(`${API_BASE_URL}/api/events/pending`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -200,7 +200,7 @@ export async function getPendingEvents(token) {
 }
 
 export async function getPendingEventUpdates(token) {
-  const response = await fetch("http://localhost:5000/api/events/updates/pending", {
+  const response = await fetch(`${API_BASE_URL}/api/events/updates/pending`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -214,7 +214,7 @@ export async function getPendingEventUpdates(token) {
 }
 
 export async function getMyRejectedEventUpdates(token) {
-  const response = await fetch("http://localhost:5000/api/events/updates/my-rejected", {
+  const response = await fetch(`${API_BASE_URL}/api/events/updates/my-rejected`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -228,7 +228,7 @@ export async function getMyRejectedEventUpdates(token) {
 }
 
 export async function getAllEventsForAdmin(token) {
-  const response = await fetch('${API_BASE_URL}/api/events/all', {
+  const response = await fetch(`${API_BASE_URL}/api/events/all`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -283,7 +283,7 @@ export async function getEventAttendees(id, token) {
 export async function removeEventAttendee(eventId, attendeeId, token, payload) {
   const removal_reason =
     typeof payload?.removal_reason === "string" ? payload.removal_reason : "";
-  const response = await fetch(`http://localhost:5000/api/events/${eventId}/attendees/${attendeeId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/attendees/${attendeeId}`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -403,7 +403,7 @@ export async function approveEventById(id, token) {
 }
 
 export async function approveEventUpdateById(id, token) {
-  const response = await fetch(`http://localhost:5000/api/events/updates/${id}/approve`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/updates/${id}/approve`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -439,7 +439,7 @@ export async function rejectEventById(id, token, payload) {
 export async function rejectEventUpdateById(id, token, payload) {
   const rejection_reason =
     typeof payload?.rejection_reason === "string" ? payload.rejection_reason : "";
-  const response = await fetch(`http://localhost:5000/api/events/updates/${id}/reject`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/updates/${id}/reject`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
