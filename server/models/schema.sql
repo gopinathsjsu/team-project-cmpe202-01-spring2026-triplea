@@ -1,111 +1,136 @@
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS registrations CASCADE;
-DROP TABLE IF EXISTS events CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
+-- Final EventHub SJSU database schema.
+-- This file is ordered for execution and mirrors the final Supabase table structure.
 
-CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
-    full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+DROP TABLE IF EXISTS public.event_update_requests CASCADE;
+DROP TABLE IF EXISTS public.notifications CASCADE;
+DROP TABLE IF EXISTS public.registrations CASCADE;
+DROP TABLE IF EXISTS public.events CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+
+CREATE TABLE public.users (
+    id BIGSERIAL NOT NULL,
+    full_name CHARACTER VARYING NOT NULL,
+    email CHARACTER VARYING NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('attendee', 'organizer', 'admin')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    role CHARACTER VARYING NOT NULL CHECK (
+        role::TEXT = ANY (
+            ARRAY[
+                'attendee'::CHARACTER VARYING,
+                'organizer'::CHARACTER VARYING,
+                'admin'::CHARACTER VARYING
+            ]::TEXT[]
+        )
+    ),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT users_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE events (
-    id BIGSERIAL PRIMARY KEY,
-    organizer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
+CREATE TABLE public.events (
+    id BIGSERIAL NOT NULL,
+    organizer_id BIGINT NOT NULL,
+    title CHARACTER VARYING NOT NULL,
     event_description TEXT NOT NULL,
-    category VARCHAR(100),
+    category CHARACTER VARYING,
     event_date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME,
-    location_name VARCHAR(255),
-    location_address VARCHAR(255),
-    location_city VARCHAR(100),
-    location_state VARCHAR(100),
-    location_zip_code VARCHAR(20),
-    latitude DECIMAL(9,6),
-    longitude DECIMAL(9,6),
+    start_time TIME WITHOUT TIME ZONE NOT NULL,
+    end_time TIME WITHOUT TIME ZONE,
+    location_name CHARACTER VARYING,
+    location_address CHARACTER VARYING,
+    location_city CHARACTER VARYING,
+    location_state CHARACTER VARYING,
+    location_zip_code CHARACTER VARYING,
+    latitude NUMERIC,
+    longitude NUMERIC,
     capacity INTEGER NOT NULL CHECK (capacity > 0),
-    approval_status VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (approval_status IN ('pending', 'approved', 'rejected')),
-    rejection_reason TEXT,
-    is_free BOOLEAN NOT NULL DEFAULT true,
-    ticket_price NUMERIC(10,2) NOT NULL DEFAULT 0.00 CHECK (ticket_price >= 0),
+    approval_status CHARACTER VARYING NOT NULL DEFAULT 'pending'::CHARACTER VARYING CHECK (
+        approval_status::TEXT = ANY (
+            ARRAY[
+                'pending'::CHARACTER VARYING,
+                'approved'::CHARACTER VARYING,
+                'rejected'::CHARACTER VARYING
+            ]::TEXT[]
+        )
+    ),
+    is_free BOOLEAN NOT NULL DEFAULT TRUE,
+    ticket_price NUMERIC NOT NULL DEFAULT 0 CHECK (ticket_price >= 0::NUMERIC),
     schedule_notes TEXT,
     calendar_link TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CHECK (is_free = true AND ticket_price = 0.00),
-    CHECK (end_time IS NULL OR end_time > start_time)
-);
-
-CREATE TABLE event_update_requests (
-    id BIGSERIAL PRIMARY KEY,
-    event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    requested_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    pending_data JSONB NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     rejection_reason TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    CONSTRAINT events_pkey PRIMARY KEY (id),
+    CONSTRAINT events_organizer_id_fkey FOREIGN KEY (organizer_id) REFERENCES public.users(id)
 );
 
-CREATE TABLE registrations (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-    registration_status VARCHAR(20) NOT NULL DEFAULT 'registered'
-        CHECK (registration_status IN ('registered', 'cancelled')),
-    registered_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    cancelled_at TIMESTAMPTZ,
+CREATE TABLE public.registrations (
+    id BIGSERIAL NOT NULL,
+    user_id BIGINT NOT NULL,
+    event_id BIGINT NOT NULL,
+    registration_status CHARACTER VARYING NOT NULL DEFAULT 'registered'::CHARACTER VARYING CHECK (
+        registration_status::TEXT = ANY (
+            ARRAY[
+                'registered'::CHARACTER VARYING,
+                'cancelled'::CHARACTER VARYING
+            ]::TEXT[]
+        )
+    ),
+    registered_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    cancelled_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     removal_reason TEXT,
-    removed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, event_id)
+    removed_by BIGINT,
+    CONSTRAINT registrations_pkey PRIMARY KEY (id),
+    CONSTRAINT registrations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+    CONSTRAINT registrations_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id),
+    CONSTRAINT registrations_removed_by_fkey FOREIGN KEY (removed_by) REFERENCES public.users(id)
 );
 
-CREATE TABLE notifications (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    event_id BIGINT REFERENCES events(id) ON DELETE SET NULL,
-    notif_type VARCHAR(50) NOT NULL CHECK (
-        notif_type IN (
-            'registration_confirmation',
-            'approval_notification',
-            'rejection_notification',
-            'event_reminder',
-            'registration_cancelled',
-            'event_deleted',
-            'attendee_removed'
+CREATE TABLE public.notifications (
+    id BIGSERIAL NOT NULL,
+    user_id BIGINT NOT NULL,
+    event_id BIGINT,
+    notif_type CHARACTER VARYING NOT NULL CHECK (
+        notif_type::TEXT = ANY (
+            ARRAY[
+                'registration_confirmation'::CHARACTER VARYING,
+                'approval_notification'::CHARACTER VARYING,
+                'rejection_notification'::CHARACTER VARYING,
+                'event_reminder'::CHARACTER VARYING,
+                'registration_cancelled'::CHARACTER VARYING,
+                'event_deleted'::CHARACTER VARYING,
+                'attendee_removed'::CHARACTER VARYING
+            ]::TEXT[]
         )
     ),
     notif_message TEXT NOT NULL,
-    is_read BOOLEAN NOT NULL DEFAULT false,
-    sent_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT notifications_pkey PRIMARY KEY (id),
+    CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+    CONSTRAINT notifications_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id)
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_events_organizer_id ON events(organizer_id);
-CREATE INDEX idx_events_approval_status ON events(approval_status);
-CREATE INDEX idx_events_event_date ON events(event_date);
-CREATE INDEX idx_events_category ON events(category);
-CREATE INDEX idx_events_city ON events(location_city);
-CREATE INDEX idx_event_update_requests_event_status ON event_update_requests(event_id, status);
-CREATE INDEX idx_event_update_requests_status ON event_update_requests(status);
-CREATE UNIQUE INDEX idx_event_update_requests_one_pending
-    ON event_update_requests(event_id)
-    WHERE status = 'pending';
-CREATE INDEX idx_registrations_event_id ON registrations(event_id);
-CREATE INDEX idx_registrations_user_id ON registrations(user_id);
-CREATE INDEX idx_registrations_user_status ON registrations(registration_status);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notification_event_id ON notifications(event_id);
-CREATE INDEX idx_notifications_type ON notifications(notif_type);
-
+CREATE TABLE public.event_update_requests (
+    id BIGSERIAL NOT NULL,
+    event_id BIGINT NOT NULL,
+    requested_by BIGINT NOT NULL,
+    pending_data JSONB NOT NULL,
+    status CHARACTER VARYING NOT NULL DEFAULT 'pending'::CHARACTER VARYING CHECK (
+        status::TEXT = ANY (
+            ARRAY[
+                'pending'::CHARACTER VARYING,
+                'approved'::CHARACTER VARYING,
+                'rejected'::CHARACTER VARYING
+            ]::TEXT[]
+        )
+    ),
+    rejection_reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT event_update_requests_pkey PRIMARY KEY (id),
+    CONSTRAINT event_update_requests_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id),
+    CONSTRAINT event_update_requests_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES public.users(id)
+);
