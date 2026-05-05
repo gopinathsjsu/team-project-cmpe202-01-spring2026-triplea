@@ -43,6 +43,18 @@ CREATE TABLE events (
     CHECK (end_time IS NULL OR end_time > start_time)
 );
 
+CREATE TABLE event_update_requests (
+    id BIGSERIAL PRIMARY KEY,
+    event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    requested_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    pending_data JSONB NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'rejected')),
+    rejection_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE registrations (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -80,6 +92,11 @@ CREATE INDEX idx_events_approval_status ON events(approval_status);
 CREATE INDEX idx_events_event_date ON events(event_date);
 CREATE INDEX idx_events_category ON events(category);
 CREATE INDEX idx_events_city ON events(location_city);
+CREATE INDEX idx_event_update_requests_event_status ON event_update_requests(event_id, status);
+CREATE INDEX idx_event_update_requests_status ON event_update_requests(status);
+CREATE UNIQUE INDEX idx_event_update_requests_one_pending
+    ON event_update_requests(event_id)
+    WHERE status = 'pending';
 CREATE INDEX idx_registrations_event_id ON registrations(event_id);
 CREATE INDEX idx_registrations_user_id ON registrations(user_id);
 CREATE INDEX idx_registrations_user_status ON registrations(registration_status);

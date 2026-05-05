@@ -138,6 +138,23 @@ export async function createEvent(body, token) {
   return data;
 }
 
+export async function updateEventById(id, body, token) {
+  const response = await fetch(`http://localhost:5000/api/events/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to update event");
+  }
+  return data;
+}
+
 export async function getMyEvents(token) {
   const response = await fetch("http://localhost:5000/api/events/my-events", {
     headers: {
@@ -176,6 +193,20 @@ export async function getPendingEvents(token) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data?.message || "Failed to fetch pending events");
+  }
+  return data;
+}
+
+export async function getPendingEventUpdates(token) {
+  const response = await fetch("http://localhost:5000/api/events/updates/pending", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch pending event updates");
   }
   return data;
 }
@@ -336,6 +367,21 @@ export async function approveEventById(id, token) {
   return data;
 }
 
+export async function approveEventUpdateById(id, token) {
+  const response = await fetch(`http://localhost:5000/api/events/updates/${id}/approve`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to approve event update");
+  }
+  return data;
+}
+
 export async function rejectEventById(id, token, payload) {
   const rejection_reason =
     typeof payload?.rejection_reason === "string" ? payload.rejection_reason : "";
@@ -351,6 +397,25 @@ export async function rejectEventById(id, token, payload) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data?.message || "Failed to disapprove event");
+  }
+  return data;
+}
+
+export async function rejectEventUpdateById(id, token, payload) {
+  const rejection_reason =
+    typeof payload?.rejection_reason === "string" ? payload.rejection_reason : "";
+  const response = await fetch(`http://localhost:5000/api/events/updates/${id}/reject`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ rejection_reason }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to disapprove event update");
   }
   return data;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { createEvent, getEventCategories } from "../services/eventService";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { createEvent, getEventById, getEventCategories, updateEventById } from "../services/eventService";
 import { normalizeCategoryLabel } from "../utils/categoryLabel";
 
 const OTHER_CATEGORY = "__others__";
@@ -12,9 +12,19 @@ function normalizeTime(value) {
   return value.length >= 5 ? value.slice(0, 5) : value.trim();
 }
 
+function normalizeDateInput(value) {
+  if (value == null) {
+    return "";
+  }
+  return String(value).slice(0, 10);
+}
+
 export default function CreateEventPage() {
+  const { id: eventId } = useParams();
   const navigate = useNavigate();
+  const isEditMode = eventId != null;
   const [submitting, setSubmitting] = useState(false);
+  const [loadingEvent, setLoadingEvent] = useState(isEditMode);
   const [error, setError] = useState("");
 
   const [title, setTitle] = useState("");
@@ -53,6 +63,59 @@ export default function CreateEventPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      setLoadingEvent(false);
+      return undefined;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("You must be logged in.");
+      setLoadingEvent(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setLoadingEvent(true);
+      setError("");
+      try {
+        const res = await getEventById(eventId, token);
+        const ev = res?.data;
+        if (!cancelled && ev) {
+          setTitle(ev.title || "");
+          setEventDescription(ev.event_description || "");
+          setCategorySelect(ev.category || "");
+          setOtherCategoryText("");
+          setEventDate(normalizeDateInput(ev.event_date));
+          setStartTime(normalizeTime(ev.start_time || ""));
+          setEndTime(normalizeTime(ev.end_time || ""));
+          setCapacity(ev.capacity != null ? String(ev.capacity) : "");
+          setLocationName(ev.location_name || "");
+          setLocationAddress(ev.location_address || "");
+          setLocationCity(ev.location_city || "");
+          setLocationState(ev.location_state || "");
+          setLocationZip(ev.location_zip_code || "");
+          setScheduleNotes(ev.schedule_notes || "");
+          setCalendarLink(ev.calendar_link || "");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err?.message || "Could not load event.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingEvent(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, isEditMode]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -115,6 +178,13 @@ export default function CreateEventPage() {
 
     setSubmitting(true);
     try {
+      if (isEditMode) {
+        await updateEventById(eventId, body, token);
+        window.alert("Event changes submitted.");
+        navigate(`/events/${eventId}`, { replace: true });
+        return;
+      }
+
       const res = await createEvent(body, token);
       const created = res?.data;
       if (created?.id != null) {
@@ -123,11 +193,19 @@ export default function CreateEventPage() {
       }
       navigate("/events", { replace: true });
     } catch (err) {
-      setError(err?.message || "Could not create event.");
+      setError(err?.message || `Could not ${isEditMode ? "update" : "create"} event.`);
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (loadingEvent) {
+    return (
+      <main className="page page-narrow">
+        <p className="text-muted loading-shimmer">Loading event…</p>
+      </main>
+    );
+  }
 
   return (
     <main className="page page-narrow">
@@ -136,11 +214,12 @@ export default function CreateEventPage() {
       </Link>
       <section className="card card-pad-lg">
         <h1 className="page-title" style={{ marginBottom: "0.35rem" }}>
-          Create event
+          {isEditMode ? "Edit event" : "Create event"}
         </h1>
         <p className="page-lede" style={{ marginBottom: "1.25rem" }}>
-          Submit for admin approval. Required: title, description, category, date, start and end time, and capacity. All
-          events are free.
+          {isEditMode
+            ? "Approved event changes are sent to admin approval before replacing the live event details."
+            : "Submit for admin approval. Required: title, description, category, date, start and end time, and capacity. All events are free."}
         </p>
 
         <form onSubmit={onSubmit} className="form-stack">
@@ -333,7 +412,7 @@ export default function CreateEventPage() {
 
           <div className="form-actions">
             <button type="submit" disabled={submitting} className="btn btn-primary">
-              {submitting ? "Creating…" : "Submit event"}
+              {submitting ? (isEditMode ? "Saving…" : "Creating…") : isEditMode ? "Submit changes" : "Submit event"}
             </button>
           </div>
         </form>

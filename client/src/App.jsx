@@ -37,6 +37,7 @@ export default function App() {
             </Route>
             <Route element={<OrganizerRoute />}>
               <Route path="/create-event" element={<CreateEventPage />} />
+              <Route path="/events/:id/edit" element={<CreateEventPage />} />
             </Route>
           </Route>
         </Route>

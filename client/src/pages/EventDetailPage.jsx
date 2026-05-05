@@ -444,6 +444,16 @@ export default function EventDetailPage() {
               <p className="callout callout--neutral" style={{ margin: 0, fontSize: "0.9375rem" }}>
                 <strong>Status</strong> {formatApprovalStatusLabel(event.approval_status)}
               </p>
+              {event.pending_update_request_id ? (
+                <p className="callout callout--neutral" style={{ margin: 0, fontSize: "0.875rem" }}>
+                  An edited version is waiting for admin approval. The live event still shows the approved details.
+                </p>
+              ) : null}
+              {event.latest_update_rejection_reason?.trim() ? (
+                <p className="callout callout--warn" style={{ margin: 0, fontSize: "0.875rem", whiteSpace: "pre-wrap" }}>
+                  <strong>Latest update disapproval note:</strong> {event.latest_update_rejection_reason.trim()}
+                </p>
+              ) : null}
               {event.approval_status === "rejected" && event.rejection_reason?.trim() ? (
                 <p className="callout callout--warn" style={{ margin: 0, fontSize: "0.875rem", whiteSpace: "pre-wrap" }}>
                   <strong>Why it was disapproved:</strong> {event.rejection_reason.trim()}
@@ -458,6 +468,11 @@ export default function EventDetailPage() {
               onSuccess={reloadEvent}
             />
           )}
+          {isOrganizerOwner ? (
+            <Link to={`/events/${event.id}/edit`} className="btn btn-secondary btn-block" style={{ marginTop: "0.5rem" }}>
+              Edit event
+            </Link>
+          ) : null}
           {isOrganizerOwner || isAdmin ? (
             <button
               type="button"

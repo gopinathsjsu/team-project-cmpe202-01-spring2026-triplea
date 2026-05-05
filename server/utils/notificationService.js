@@ -42,7 +42,7 @@ async function notifyRegistrationConfirmation({ attendee, event }) {
   });
 }
 
-async function notifyEventApprovalStatus({ organizer, event, status }) {
+async function notifyEventApprovalStatus({ organizer, event, status, isUpdate = false }) {
   const isApproved = status === "approved";
 
   const type = isApproved
@@ -50,8 +50,8 @@ async function notifyEventApprovalStatus({ organizer, event, status }) {
     : "rejection_notification";
 
   const message = isApproved
-    ? `Your event "${event.title}" has been approved.`
-    : `Your event "${event.title}" has been rejected.`;
+    ? `Your ${isUpdate ? "event update" : "event"} "${event.title}" has been approved.`
+    : `Your ${isUpdate ? "event update" : "event"} "${event.title}" has been rejected.`;
 
   await createNotification({
     userId: organizer.id,
@@ -63,11 +63,11 @@ async function notifyEventApprovalStatus({ organizer, event, status }) {
   await sendEmail({
     to: organizer.email,
     subject: isApproved
-      ? `Event approved: ${event.title}`
-      : `Event rejected: ${event.title}`,
+      ? `${isUpdate ? "Event update" : "Event"} approved: ${event.title}`
+      : `${isUpdate ? "Event update" : "Event"} rejected: ${event.title}`,
     text: message,
     html: `
-      <h2>${isApproved ? "Event Approved" : "Event Rejected"}</h2>
+      <h2>${isUpdate ? "Event Update" : "Event"} ${isApproved ? "Approved" : "Rejected"}</h2>
       <p>${message}</p>
     `,
   });
