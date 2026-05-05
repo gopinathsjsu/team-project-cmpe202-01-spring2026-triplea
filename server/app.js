@@ -14,10 +14,13 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://main.d15ttj8ggeuben.amplifyapp.com"
+    "https://main.d15ttj8ggeuben.amplifyapp.com",
+    "https://eventhubsjsu.xyz",
+    "https://www.eventhubsjsu.xyz"
   ],
   credentials: true
 }));
+app.options("*", cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
