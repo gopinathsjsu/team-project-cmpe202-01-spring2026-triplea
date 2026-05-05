@@ -2,7 +2,30 @@
 
 # EventHub SJSU
 
-EventHub SJSU is a full-stack Eventbrite-like platform for discovering, creating, managing, and registering for events. It was built for CMPE 202 using Scrum-based development across multiple sprints.
+EventHub SJSU is a full-stack event app where users can find, create, manage, and register for events. We built it for CMPE 202 using Scrum across multiple sprints.
+
+## Team Information
+
+**Team Name:** TripleA
+
+**Team Members:**
+
+- Alicia Kim
+- Anandita
+
+**Contribution Summary:**
+
+- Alicia worked on project planning, sprint/backlog setup, API conventions, component and deployment diagrams, project documentation, and final documentation. She worked on authentication, protected routes, role-based access control, frontend integration, RSVP, organizer/admin workflows, attendee management, API validation, error handling, role-based dashboards, UI polish, and testing.
+- Anandita worked on UI wireframes, backend environment setup, database setup, Supabase migration, event CRUD/detail APIs, organizer information, capacity logic, search and filter logic, notifications, email integration, Google Calendar, Google Maps, and AWS setup tasks.
+- Both team members worked together on deployment and demo preparation.
+
+**Project Journal:** [PROJECT_JOURNAL.md](https://github.com/gopinathsjsu/team-project-cmpe202-01-spring2026-triplea/blob/main/PROJECT_JOURNAL.md)
+
+**Backlog and Sprint Tracking:**
+
+- [GitHub Project Board](https://github.com/orgs/gopinathsjsu/projects/154/views/1)
+- [Burndown and Story Point Google Sheet](https://docs.google.com/spreadsheets/d/1RVm_heL87TRjrHEN_H4J3Goh07gKo1lJHJvYNI6tYK0/edit?usp=sharing)
+- Sprint burndown charts are included in [PROJECT_JOURNAL.md](https://github.com/gopinathsjsu/team-project-cmpe202-01-spring2026-triplea/blob/main/PROJECT_JOURNAL.md).
 
 ## Features
 
@@ -11,11 +34,13 @@ EventHub SJSU is a full-stack Eventbrite-like platform for discovering, creating
 - Event discovery with category, date, location, keyword search, and sorting support.
 - Event detail pages with organizer information, capacity status, RSVP actions, Google Calendar links, and Google Maps support.
 - Organizer workflows for creating events, updating events, viewing attendees, and removing attendees.
-- Admin workflows for approving/rejecting events and reviewing event update requests.
-- RSVP workflows with duplicate registration prevention, cancellation, capacity checks, and attendee removal tracking.
-- Email notification workflows for registration confirmations, approvals, rejections, reminders, cancellations, event deletion, and attendee removal.
+- Admin workflows for approving or rejecting events and reviewing event update requests.
+- RSVP workflows with duplicate registration checks, cancellation, capacity checks, and attendee removal tracking.
+- Email notifications for registration confirmations, approvals, rejections, reminders, cancellations, event deletion, and attendee removal.
 - Scheduled event reminder job that runs before upcoming events.
-- AWS deployment preparation with EC2, Nginx, AMI, Auto Scaling Group, and Application Load Balancer.
+- Supabase PostgreSQL database populated with mock users, events, registrations, and notifications for testing and demo use.
+- Responsive web UI with accessibility-focused labels, spacing, contrast, and role-based navigation.
+- AWS deployment using EC2, Nginx, AMI, Auto Scaling Group, and Application Load Balancer.
 
 ## Tech Stack
 
@@ -28,7 +53,7 @@ EventHub SJSU is a full-stack Eventbrite-like platform for discovering, creating
 
 ## Design Documentation
 
-The team created UI wireframes, a UML component diagram, and a UML deployment diagram to document the planned user experience and overall system architecture.
+We created UI wireframes, a UML component diagram, and a UML deployment diagram to show how the app works.
 
 ### UI Wireframes
 
@@ -45,24 +70,34 @@ The wireframes cover the main screens in EventHub SJSU:
 
 ### UML Component Diagram
 
-The component diagram shows the React frontend communicating with the Express API server over HTTPS/JSON. The backend validates JWT tokens, reads and updates the Supabase PostgreSQL database, and connects to notification, calendar, and map integration services.
+The component diagram shows the React frontend communicating with the Express API server over HTTPS/JSON. The backend validates JWT tokens, reads and updates the Supabase PostgreSQL database, and connects to email, calendar, and map services.
 
 ![EventHub SJSU UML Component Diagram](docs/diagrams/component-diagram.png)
 
 ### UML Deployment Diagram
 
-The deployment diagram shows the production architecture with a Vite-built React app hosted on AWS Amplify, requests routed through an AWS Application Load Balancer to EC2 instances running the Node.js/Express API server, and persistent data stored in Supabase PostgreSQL. External services support notifications, calendar syncing, and location mapping.
+The deployment diagram shows the production setup. The React app is hosted on AWS Amplify. API requests go through an AWS Application Load Balancer to EC2 instances running the Node.js/Express server. Supabase PostgreSQL stores the production data.
 
 ![EventHub SJSU UML Deployment Diagram](docs/diagrams/deployment-diagram.png)
 
 ### Key Design Decisions
 
-- Used a React/Vite single-page frontend with React Router to support clear page-level navigation for attendees, organizers, and admins.
-- Used an Express REST API with JWT middleware so protected routes can enforce role-based access for attendees, organizers, and admins.
-- Moved from early in-memory backend storage to PostgreSQL/Supabase for persistent users, events, registrations, notifications, and event update requests.
-- Added approval and update-review workflows so admins control public event visibility while organizers can still manage their own events.
-- Integrated email notifications, scheduled reminders, Google Calendar links, and Google Maps support to make the event workflow more complete.
-- Prepared AWS deployment with EC2, Nginx, AMI, Auto Scaling Group, and Application Load Balancer to support a production-style deployment model.
+- Used React/Vite with React Router so attendees, organizers, and admins can move between pages clearly.
+- Used an Express REST API with JWT middleware so protected routes can enforce role-based access.
+- Moved from early in-memory storage to PostgreSQL/Supabase for users, events, registrations, notifications, and event update requests.
+- Added event approval and update review workflows so admins control what is public while organizers can still manage their events.
+- Added email notifications, scheduled reminders, Google Calendar links, and Google Maps support.
+- Deployed the backend API with EC2, Nginx, AMI, Auto Scaling Group, and Application Load Balancer.
+
+## Production Deployment
+
+The production web UI is deployed with AWS Amplify:
+
+- `https://main.d15ttj8ggeuben.amplifyapp.com`
+- `https://eventhubsjsu.xyz`
+- `https://www.eventhubsjsu.xyz`
+
+The React/Vite frontend calls the deployed Express APIs through `VITE_API_BASE_URL`. The backend API runs on AWS EC2 instances behind an Application Load Balancer. Nginx sends requests to the Node.js/Express server, and Supabase PostgreSQL stores the production data.
 
 ## Repository Structure
 
@@ -73,7 +108,7 @@ project-root/
   server/                 Express backend
   DB_DESIGN.md            Final database design documentation
   PROJECT_JOURNAL.md      Scrum meeting and sprint journal
-  PROJECT_STRUCTURE.md    Architecture and folder guide
+  PROJECT_STRUCTURE.md    Project structure and folder guide
   README.md               Project overview and setup guide
 ```
 
@@ -116,6 +151,7 @@ Optional frontend environment file, `client/.env`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5000
+VITE_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 ```
 
 ### Client (React + Vite)
@@ -148,7 +184,7 @@ npm install
 npm start
 ```
 
-`npm start` runs `node app.js` for production-style execution.
+`npm start` runs `node app.js` for production.
 
 ### Client Build
 
@@ -175,7 +211,7 @@ Main tables:
 - `notifications`
 - `event_update_requests`
 
-The schema supports user roles, event approval, event update requests, RSVP status, attendee removal reasons, notification types, calendar links, and map coordinates.
+The schema includes user roles, event approval, event update requests, RSVP status, attendee removal reasons, notification types, calendar links, and map coordinates.
 
 ## API Overview
 
@@ -216,17 +252,5 @@ The schema supports user roles, event approval, event update requests, RSVP stat
 ## Project Documentation
 
 - `PROJECT_JOURNAL.md`: Sprint-by-sprint Scrum meeting records and individual contributions.
-- `PROJECT_STRUCTURE.md`: Current frontend/backend architecture and folder responsibilities.
+- `PROJECT_STRUCTURE.md`: Current frontend/backend structure and folder responsibilities.
 - `DB_DESIGN.md`: Final database design, relationships, constraints, and business rules.
-
-## Demo Day Flow
-
-Recommended walkthrough:
-
-1. Register or log in as an attendee, organizer, or admin.
-2. Browse approved events using search and filters.
-3. Open an event detail page and review map/calendar support.
-4. RSVP as an attendee and verify dashboard registration status.
-5. Create or update an event as an organizer.
-6. Approve or reject events/update requests as an admin.
-7. Show notification behavior and attendee management workflows.

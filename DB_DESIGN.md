@@ -2,9 +2,9 @@
 
 ## Overview
 
-This document describes the final database structure for EventHub SJSU. The database supports role-based authentication, event creation and approval, event update requests, attendee RSVP workflows, organizer attendee management, notifications, calendar links, and map-related location data.
+This file explains the final database structure for EventHub SJSU. The database stores users, events, RSVPs, event update requests, attendee management data, notifications, calendar links, and map location data.
 
-The implementation uses PostgreSQL/Supabase. The executable final schema is maintained in `server/models/schema.sql`.
+The app uses Supabase PostgreSQL. The final schema is kept in `server/models/schema.sql` as a setup and reference file.
 
 ## Database Goals
 
@@ -67,7 +67,7 @@ The implementation uses PostgreSQL/Supabase. The executable final schema is main
 
 **Purpose**
 
-- Stores event records created by organizers/admins, including schedule, location, capacity, approval state, rejection reason, and calendar/map fields.
+- Stores events created by organizers/admins, including schedule, location, capacity, approval state, rejection reason, and calendar/map fields.
 
 **Columns**
 
@@ -108,8 +108,8 @@ The implementation uses PostgreSQL/Supabase. The executable final schema is main
 
 **Notes**
 
-- `latitude` and `longitude` support Google Maps integration.
-- `calendar_link` supports Google Calendar integration.
+- `latitude` and `longitude` are used for Google Maps.
+- `calendar_link` is used for Google Calendar.
 - Rejected events store the explanation in `rejection_reason`.
 
 ### `registrations`
@@ -151,7 +151,7 @@ The implementation uses PostgreSQL/Supabase. The executable final schema is main
 
 **Purpose**
 
-- Stores notification records for user-facing messages and email-related workflows.
+- Stores notification records for user messages and email features.
 
 **Columns**
 
@@ -186,7 +186,7 @@ The implementation uses PostgreSQL/Supabase. The executable final schema is main
 
 **Purpose**
 
-- Stores organizer-submitted event update requests that require admin approval before changing the live event.
+- Stores event update requests from organizers. Admins must approve them before the live event changes.
 
 **Columns**
 

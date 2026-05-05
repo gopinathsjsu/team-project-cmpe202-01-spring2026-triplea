@@ -2,33 +2,55 @@
 
 ## Overview
 
-This journal documents the team's weekly Scrum reports for the CMPE 202 EventHub project, an Eventbrite-like platform with role-based authentication, event creation and discovery, RSVP support, notifications, calendar and map integrations, and AWS deployment with auto scaling.
+This journal keeps our weekly Scrum reports for the CMPE 202 EventHub project. EventHub is an event app with role-based login, event creation and browsing, RSVP support, notifications, calendar and map features, and AWS deployment with auto scaling.
 
-Across the sprints, the team progressed from project planning, architecture, wireframes, and database setup to full-stack feature implementation, API validation, role-based access control, RSVP workflows, notifications, integrations, deployment preparation, and final demo readiness.
+Across the sprints, we moved from planning, diagrams, wireframes, and database setup to full-stack features, API validation, role-based access, RSVP, notifications, integrations, AWS deployment, and final demo work.
+
+## Scrum Backlog and Burndown Tracking
+
+The team maintained the Scrum backlog in GitHub Projects: [EventHub SJSU Scrum Backlog](https://github.com/orgs/gopinathsjsu/projects/154/views/1).
+
+Story point tracking and burndown chart source data were maintained in Google Sheets: [CMPE202 Burndown Sheet](https://docs.google.com/spreadsheets/d/1RVm_heL87TRjrHEN_H4J3Goh07gKo1lJHJvYNI6tYK0/edit?usp=sharing).
+
+### Sprint 1 Burndown Chart
+
+![Sprint 1 Burndown Chart](docs/diagrams/sprint-1-burndown.png)
+
+### Sprint 2 Burndown Chart
+
+![Sprint 2 Burndown Chart](docs/diagrams/sprint-2-burndown.png)
+
+### Sprint 3 Burndown Chart
+
+![Sprint 3 Burndown Chart](docs/diagrams/sprint-3-burndown.png)
 
 ## Major Milestones
 
-- Completed project structure, architecture documentation, database design, and wireframes.
+- Completed project structure, architecture notes, database design, and wireframes.
 - Implemented authentication with password hashing, JWT generation and verification, protected routes, and role-based access control for attendees, organizers, and admins.
-- Built event CRUD APIs, event listing and detail pages, search and filter support, capacity logic, and RSVP workflows.
-- Added organizer and admin workflows, including attendee management, event approval, rejection, deletion, and visibility rules.
+- Built event CRUD APIs, event listing and detail pages, search and filters, capacity logic, and RSVP features.
+- Added organizer and admin features, including attendee management, event approval, rejection, deletion, and visibility rules.
 - Implemented email notifications, RSVP cancellation notifications, event deletion notifications, and scheduled event reminders.
 - Added Google Calendar and Google Maps integrations.
-- Began AWS deployment using EC2, Nginx, AMI, Auto Scaling Group, and Application Load Balancer.
+- Completed AWS deployment using EC2, Nginx, AMI, Auto Scaling Group, and Application Load Balancer.
 
 ## XP Core Values
 
 ### Communication
 
-The team followed the XP value of communication by holding regular Scrum meetings and documenting each member's completed work, next steps, and blockers throughout the project. These check-ins helped the team coordinate frontend, backend, database, and deployment tasks without duplicating work. For example, Alicia focused heavily on authentication, protected routes, frontend integration, RSVP flows, organizer/admin dashboards, and UI polish, while Anandita focused on wireframes, database setup, Supabase migration, event APIs, search/filter logic, notifications, calendar/map integrations, and AWS deployment. By sharing progress each meeting, the team was able to identify dependencies early, such as moving from in-memory authentication storage to the database and coordinating backend APIs before frontend integration.
+We followed the XP value of communication by having regular Scrum meetings. In each meeting, we shared what we finished, what we would do next, and any blockers. This helped us stay on the same page and avoid doing the same work.
 
-Communication also helped the team keep project documentation aligned with implementation. The team maintained architecture documentation, database design, Scrum meeting records, and updated project structure notes as the application evolved. This made it easier to prepare for Demo Day because the team could clearly explain what was built, who contributed to each feature, and how the system changed across sprints.
+We split our work based on our roles. Alicia worked on project planning, component and deployment diagrams, backlog and sprint setup, authentication, protected routes, API validation, role-based access control, frontend integration, RSVP features, create and update event features, attendee/organizer/admin dashboards, attendee management, testing, documentation, and UI improvements. Anandita worked on wireframes, database setup, Supabase migration, event APIs, search and filter features, notifications, and Google Calendar and Google Maps integrations. We worked together on deployment. By talking often, we could see dependencies early. For example, we first used in-memory storage for authentication, then moved to the database later. We also made sure backend APIs were ready before connecting the frontend.
+
+We also used communication to keep our documents updated. We kept track of architecture, database design, and Scrum notes as the project changed. This made it easier to explain our work during Demo Day.
 
 ### Respect
 
-The team followed the XP value of respect by dividing work based on ownership areas while still supporting each other when tasks overlapped. Each member's contributions were treated as important to the final product: frontend pages depended on backend APIs, backend features depended on database design, and deployment depended on stable application behavior. The Scrum records show that each person consistently reported their own work and planned next steps, which helped the team recognize individual progress and avoid confusion about responsibility.
+We showed respect by taking responsibility for our own parts while helping each other when needed. Each part of the system depended on the others. The frontend needed the backend, the backend needed the database, and deployment needed everything to work together.
 
-Respect was also shown through collaboration around blockers and shared quality goals. When one part of the project depended on another, the team adjusted plans instead of blaming delays. For example, the backend initially used in-memory storage while waiting for database setup, then later moved to Supabase once the database work was ready. The team also respected users and reviewers by improving validation, error handling, role-based access control, notification reliability, and UI clarity before the final demo.
+When we had blockers, we worked together to fix them. We did not blame each other. For example, we used in-memory storage first and moved to Supabase later when it was ready.
+
+We also respected users by improving the quality of our app. Before the final demo, we worked on validation, error handling, role-based access, notifications, and UI clarity. This helped make the app more reliable and easier to use.
 
 ## Sprint 1
 
