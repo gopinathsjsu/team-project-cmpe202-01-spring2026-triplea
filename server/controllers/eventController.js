@@ -2,13 +2,13 @@ const pool = require("../config/db");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const {
   isNonEmptyTrimmedString,
-  isNumericNonNegative,
   normalizeCategoryLabel,
 } = require("../utils/validation");
 const {
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
   notifyRegistrationCancelled,
+  notifyAttendeeRemovedFromEvent,
   notifyEventDeleted,
 } = require("../utils/notificationService");
 const { generateGoogleCalendarLink, generateGoogleMapsSearchLink } = require("../utils/calendarUtils");
@@ -52,6 +52,90 @@ const EVENT_LIST_SORT_SQL = {
 
 function canManageEvents(user) {
   return user && (user.role === "organizer" || user.role === "admin");
+}
+
+/** True when the client explicitly asks for a paid / non-free event (reject with 400). */
+function bodyRequestsPaidEvent(body) {
+  if (!body || typeof body !== "object") {
+    return false;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "is_free")) {
+    const v = body.is_free;
+    if (v === false || v === "false" || v === 0 || v === "0") {
+      return true;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "ticket_price")) {
+    const p = Number(body.ticket_price);
+    if (Number.isFinite(p) && p > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasOwn(body, key) {
+  return Object.prototype.hasOwnProperty.call(body, key);
+}
+
+function buildEventUpdatePayload(body, event) {
+  const resolvedEndTime = hasOwn(body, "end_time")
+    ? typeof body.end_time === "string"
+      ? body.end_time.trim()
+      : ""
+    : event.end_time;
+
+  const updatedCapacity = hasOwn(body, "capacity")
+    ? Number(body.capacity)
+    : Number(event.capacity);
+
+  return {
+    title: hasOwn(body, "title") ? String(body.title).trim() : event.title,
+    event_description: hasOwn(body, "event_description")
+      ? String(body.event_description).trim()
+      : event.event_description,
+    category: hasOwn(body, "category")
+      ? normalizeCategoryLabel(typeof body.category === "string" ? body.category : "")
+      : event.category,
+    event_date: body.event_date ?? event.event_date,
+    start_time: body.start_time ?? event.start_time,
+    end_time: resolvedEndTime,
+    location_name: body.location_name ?? event.location_name,
+    location_address: body.location_address ?? event.location_address,
+    location_city: body.location_city ?? event.location_city,
+    location_state: body.location_state ?? event.location_state,
+    location_zip_code: body.location_zip_code ?? event.location_zip_code,
+    latitude: body.latitude ?? event.latitude,
+    longitude: body.longitude ?? event.longitude,
+    capacity: updatedCapacity,
+    is_free: true,
+    ticket_price: 0,
+    schedule_notes: body.schedule_notes ?? event.schedule_notes,
+    calendar_link: body.calendar_link ?? event.calendar_link,
+  };
+}
+
+function eventUpdateValues(payload) {
+  return [
+    payload.title,
+    payload.event_description,
+    payload.category,
+    payload.event_date,
+    payload.start_time,
+    payload.end_time,
+    payload.location_name,
+    payload.location_address,
+    payload.location_city,
+    payload.location_state,
+    payload.location_zip_code,
+    payload.latitude,
+    payload.longitude,
+    payload.capacity,
+    true,
+    0,
+    payload.schedule_notes,
+    payload.calendar_link,
+  ];
 }
 
 async function getEventCategories(req, res, next) {
@@ -478,6 +562,80 @@ async function getPendingEvents(req, res, next) {
   }
 }
 
+async function getPendingEventUpdates(req, res, next) {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        pur.id AS update_request_id,
+        pur.event_id,
+        pur.requested_by,
+        pur.pending_data,
+        pur.status,
+        pur.created_at,
+        pur.updated_at,
+        e.title AS current_title,
+        e.category AS current_category,
+        e.event_date AS current_event_date,
+        e.start_time AS current_start_time,
+        e.location_name AS current_location_name,
+        pur.pending_data->>'title' AS proposed_title,
+        pur.pending_data->>'category' AS proposed_category,
+        pur.pending_data->>'event_date' AS proposed_event_date,
+        pur.pending_data->>'start_time' AS proposed_start_time,
+        pur.pending_data->>'location_name' AS proposed_location_name,
+        u.full_name AS organizer_full_name
+      FROM event_update_requests pur
+      JOIN events e ON e.id = pur.event_id
+      LEFT JOIN users u ON u.id = e.organizer_id
+      WHERE pur.status = 'pending'
+      ORDER BY pur.updated_at DESC
+      `
+    );
+
+    return successResponse(res, result.rows, "Pending event updates fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getMyRejectedEventUpdates(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query(
+      `
+      SELECT
+        pur.id AS update_request_id,
+        pur.event_id,
+        pur.pending_data,
+        pur.rejection_reason,
+        pur.created_at,
+        pur.updated_at,
+        e.title AS current_title,
+        e.category AS current_category,
+        e.event_date AS current_event_date,
+        e.start_time AS current_start_time,
+        e.location_name AS current_location_name,
+        pur.pending_data->>'title' AS proposed_title,
+        pur.pending_data->>'category' AS proposed_category,
+        pur.pending_data->>'event_date' AS proposed_event_date,
+        pur.pending_data->>'start_time' AS proposed_start_time,
+        pur.pending_data->>'location_name' AS proposed_location_name
+      FROM event_update_requests pur
+      JOIN events e ON e.id = pur.event_id
+      WHERE e.organizer_id = $1
+        AND pur.status = 'rejected'
+      ORDER BY pur.updated_at DESC
+      `,
+      [userId]
+    );
+
+    return successResponse(res, result.rows, "Rejected event updates fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getAllEventsForAdmin(req, res, next) {
   try {
     const result = await pool.query(
@@ -582,6 +740,11 @@ async function getEventById(req, res, next) {
         e.calendar_link,
         e.created_at,
         e.updated_at,
+        pur.id AS pending_update_request_id,
+        pur.pending_data AS pending_update_data,
+        pur.updated_at AS pending_update_requested_at,
+        rejected_update.rejection_reason AS latest_update_rejection_reason,
+        rejected_update.updated_at AS latest_update_rejected_at,
         u.full_name AS organizer_name,
         u.full_name AS organizer_full_name,
         u.email AS organizer_email,
@@ -609,8 +772,20 @@ async function getEventById(req, res, next) {
         ON e.organizer_id = u.id
       LEFT JOIN registrations r
         ON e.id = r.event_id
+      LEFT JOIN event_update_requests pur
+        ON pur.event_id = e.id AND pur.status = 'pending'
+      LEFT JOIN LATERAL (
+        SELECT rejection_reason, updated_at
+        FROM event_update_requests
+        WHERE event_id = e.id
+          AND status = 'rejected'
+          AND rejection_reason IS NOT NULL
+          AND BTRIM(rejection_reason) <> ''
+        ORDER BY updated_at DESC
+        LIMIT 1
+      ) rejected_update ON TRUE
       WHERE e.id = $1
-      GROUP BY e.id, u.id
+      GROUP BY e.id, u.id, pur.id, rejected_update.rejection_reason, rejected_update.updated_at
       `,
       [id]
     );
@@ -633,6 +808,36 @@ async function getEventById(req, res, next) {
       return errorResponse(res, 404, "Event not found");
     }
 
+    if (!canViewUnrestricted) {
+      delete eventRow.pending_update_request_id;
+      delete eventRow.pending_update_data;
+      delete eventRow.pending_update_requested_at;
+      delete eventRow.latest_update_rejection_reason;
+      delete eventRow.latest_update_rejected_at;
+    }
+
+    if (viewer?.role === "attendee" && viewer.userId != null) {
+      const removalResult = await pool.query(
+        `
+        SELECT removal_reason, cancelled_at
+        FROM registrations
+        WHERE event_id = $1
+          AND user_id = $2
+          AND registration_status = 'cancelled'
+          AND removal_reason IS NOT NULL
+          AND BTRIM(removal_reason) <> ''
+        ORDER BY updated_at DESC
+        LIMIT 1
+        `,
+        [id, viewer.userId]
+      );
+
+      if (removalResult.rows.length > 0) {
+        eventRow.attendee_removal_reason = removalResult.rows[0].removal_reason;
+        eventRow.attendee_removed_at = removalResult.rows[0].cancelled_at;
+      }
+    }
+
     return successResponse(res, eventRow, "Event fetched successfully");
   } catch (error) {
     return next(error);
@@ -643,6 +848,10 @@ async function createEvent(req, res, next) {
   try {
     if (!canManageEvents(req.user)) {
       return errorResponse(res, 403, "Only organizers or admins can create events");
+    }
+
+    if (bodyRequestsPaidEvent(req.body)) {
+      return errorResponse(res, 400, "Only free events are supported");
     }
 
     const {
@@ -660,8 +869,6 @@ async function createEvent(req, res, next) {
       latitude,
       longitude,
       capacity,
-      is_free = true,
-      ticket_price = 0,
       schedule_notes,
       calendar_link,
     } = req.body;
@@ -690,10 +897,6 @@ async function createEvent(req, res, next) {
       return errorResponse(res, 400, "category is required");
     }
 
-    if (!isNumericNonNegative(ticket_price)) {
-      return errorResponse(res, 400, "ticket_price must be numeric and >= 0");
-    }
-
     if (!isValidEventDate(event_date)) {
       return errorResponse(res, 400, "Invalid event_date format");
     }
@@ -712,10 +915,6 @@ async function createEvent(req, res, next) {
 
     if (!isValidCapacity(capacity)) {
       return errorResponse(res, 400, "capacity must be a number greater than 0");
-    }
-
-    if (Boolean(is_free) && Number(ticket_price) !== 0) {
-      return errorResponse(res, 400, "Free events must have ticket_price = 0");
     }
 
     const result = await pool.query(
@@ -764,8 +963,8 @@ async function createEvent(req, res, next) {
         latitude ?? null,
         longitude ?? null,
         Number(capacity),
-        Boolean(is_free),
-        Number(ticket_price),
+        true,
+        0,
         schedule_notes || null,
         calendar_link || null,
       ]
@@ -788,6 +987,10 @@ async function updateEvent(req, res, next) {
     }
 
     const body = req.body;
+    if (bodyRequestsPaidEvent(body)) {
+      return errorResponse(res, 400, "Only free events are supported");
+    }
+
     const { id } = req.params;
     const {
       title,
@@ -804,28 +1007,24 @@ async function updateEvent(req, res, next) {
       latitude,
       longitude,
       capacity,
-      is_free,
-      ticket_price,
       schedule_notes,
       calendar_link,
     } = body;
 
-    if (Object.prototype.hasOwnProperty.call(body, "title")) {
+    if (hasOwn(body, "title")) {
       if (!isNonEmptyTrimmedString(title)) {
         return errorResponse(res, 400, "title must be a non-empty trimmed string");
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "event_description")) {
+    if (hasOwn(body, "event_description")) {
       if (!isNonEmptyTrimmedString(event_description)) {
         return errorResponse(res, 400, "event_description must be a non-empty trimmed string");
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "ticket_price")) {
-      if (!isNumericNonNegative(ticket_price)) {
-        return errorResponse(res, 400, "ticket_price must be numeric and >= 0");
-      }
+    if (hasOwn(body, "category") && !normalizeCategoryLabel(typeof category === "string" ? category : "")) {
+      return errorResponse(res, 400, "category must be a non-empty trimmed string");
     }
 
     if (event_date !== undefined && !isValidEventDate(event_date)) {
@@ -836,7 +1035,7 @@ async function updateEvent(req, res, next) {
       return errorResponse(res, 400, "Invalid start_time format");
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "end_time")) {
+    if (hasOwn(body, "end_time")) {
       const endTrimmed = typeof end_time === "string" ? end_time.trim() : "";
       if (!endTrimmed) {
         return errorResponse(res, 400, "end_time is required");
@@ -846,7 +1045,7 @@ async function updateEvent(req, res, next) {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "capacity")) {
+    if (hasOwn(body, "capacity")) {
       if (!isValidCapacity(capacity)) {
         return errorResponse(res, 400, "capacity must be a number greater than 0");
       }
@@ -862,22 +1061,36 @@ async function updateEvent(req, res, next) {
       return errorResponse(res, 403, "You can only update your own events");
     }
 
-    const resolvedEndTime = Object.prototype.hasOwnProperty.call(body, "end_time")
-      ? typeof end_time === "string"
-        ? end_time.trim()
-        : ""
-      : event.end_time;
+    const updatePayload = buildEventUpdatePayload(body, event);
 
-    const updatedIsFree = typeof is_free === "boolean" ? is_free : event.is_free;
-    const updatedTicketPrice = Object.prototype.hasOwnProperty.call(body, "ticket_price")
-      ? Number(ticket_price)
-      : Number(event.ticket_price);
-    const updatedCapacity = Object.prototype.hasOwnProperty.call(body, "capacity")
-      ? Number(capacity)
-      : Number(event.capacity);
+    if (event.approval_status === "approved" && req.user.role !== "admin") {
+      const result = await pool.query(
+        `
+        INSERT INTO event_update_requests (
+          event_id,
+          requested_by,
+          pending_data,
+          status,
+          rejection_reason
+        )
+        VALUES ($1, $2, $3, 'pending', NULL)
+        ON CONFLICT (event_id) WHERE status = 'pending'
+        DO UPDATE SET
+          requested_by = EXCLUDED.requested_by,
+          pending_data = EXCLUDED.pending_data,
+          rejection_reason = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+        `,
+        [id, req.user.userId, updatePayload]
+      );
 
-    if (updatedIsFree && updatedTicketPrice !== 0) {
-      return errorResponse(res, 400, "Free events must have ticket_price = 0");
+      return successResponse(
+        res,
+        { event, update_request: result.rows[0] },
+        "Event update submitted for admin approval",
+        202
+      );
     }
 
     const result = await pool.query(
@@ -902,33 +1115,16 @@ async function updateEvent(req, res, next) {
         ticket_price = $16,
         schedule_notes = $17,
         calendar_link = $18,
+        approval_status = $19,
+        rejection_reason = $20,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $19
+      WHERE id = $21
       RETURNING *
       `,
       [
-        Object.prototype.hasOwnProperty.call(body, "title") ? String(title).trim() : event.title,
-        Object.prototype.hasOwnProperty.call(body, "event_description")
-          ? String(event_description).trim()
-          : event.event_description,
-        Object.prototype.hasOwnProperty.call(body, "category")
-          ? normalizeCategoryLabel(typeof category === "string" ? category : "")
-          : event.category,
-        event_date ?? event.event_date,
-        start_time ?? event.start_time,
-        resolvedEndTime,
-        location_name ?? event.location_name,
-        location_address ?? event.location_address,
-        location_city ?? event.location_city,
-        location_state ?? event.location_state,
-        location_zip_code ?? event.location_zip_code,
-        latitude ?? event.latitude,
-        longitude ?? event.longitude,
-        updatedCapacity,
-        updatedIsFree,
-        updatedTicketPrice,
-        schedule_notes ?? event.schedule_notes,
-        calendar_link ?? event.calendar_link,
+        ...eventUpdateValues(updatePayload),
+        event.approval_status === "rejected" ? "pending" : event.approval_status,
+        event.approval_status === "rejected" ? null : event.rejection_reason,
         id,
       ]
     );
@@ -1057,6 +1253,8 @@ async function registerForEvent(req, res, next) {
         SET
           registration_status = 'registered',
           cancelled_at = NULL,
+          removal_reason = NULL,
+          removed_by = NULL,
           updated_at = CURRENT_TIMESTAMP
         WHERE user_id = $1 AND event_id = $2
         RETURNING *
@@ -1189,6 +1387,8 @@ async function unregisterFromEvent(req, res, next) {
       SET
         registration_status = 'cancelled',
         cancelled_at = CURRENT_TIMESTAMP,
+        removal_reason = NULL,
+        removed_by = NULL,
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = $1 AND event_id = $2 AND registration_status = 'registered'
       RETURNING id
@@ -1210,6 +1410,112 @@ async function unregisterFromEvent(req, res, next) {
     }
 
     return successResponse(res, null, "Unregistered successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function removeAttendeeFromEvent(req, res, next) {
+  try {
+    const { id: eventId, attendeeId } = req.params;
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const rawReason =
+      hasOwn(body, "removal_reason") && body.removal_reason !== undefined
+        ? body.removal_reason
+        : hasOwn(body, "reason") && body.reason !== undefined
+          ? body.reason
+          : undefined;
+
+    if (rawReason !== undefined && rawReason !== null && typeof rawReason !== "string") {
+      return errorResponse(res, 400, "Removal reason is required as non-empty text");
+    }
+
+    const removalReason = typeof rawReason === "string" ? rawReason.trim() : "";
+    if (!removalReason) {
+      return errorResponse(res, 400, "Removal reason is required");
+    }
+    if (removalReason.length > MAX_REJECTION_REASON_LENGTH) {
+      return errorResponse(
+        res,
+        400,
+        `Removal reason must be at most ${MAX_REJECTION_REASON_LENGTH} characters`
+      );
+    }
+
+    const attendeeNumericId = Number(attendeeId);
+    if (!Number.isInteger(attendeeNumericId) || attendeeNumericId <= 0) {
+      return errorResponse(res, 400, "Invalid attendee id");
+    }
+
+    const eventResult = await pool.query(
+      `
+      SELECT id, title, event_date, start_time, organizer_id
+      FROM events
+      WHERE id = $1
+      `,
+      [eventId]
+    );
+
+    if (eventResult.rows.length === 0) {
+      return errorResponse(res, 404, "Event not found");
+    }
+
+    const event = eventResult.rows[0];
+    if (req.user.role !== "admin" && Number(event.organizer_id) !== Number(req.user.userId)) {
+      return errorResponse(res, 403, "You can only remove attendees from your own events");
+    }
+
+    const attendeeResult = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.full_name,
+        u.email,
+        r.id AS registration_id
+      FROM users u
+      JOIN registrations r ON r.user_id = u.id
+      WHERE u.id = $1
+        AND r.event_id = $2
+        AND r.registration_status = 'registered'
+      `,
+      [attendeeNumericId, eventId]
+    );
+
+    if (attendeeResult.rows.length === 0) {
+      return errorResponse(res, 404, "No active registration found for this attendee");
+    }
+
+    const attendee = attendeeResult.rows[0];
+    const result = await pool.query(
+      `
+      UPDATE registrations
+      SET
+        registration_status = 'cancelled',
+        cancelled_at = CURRENT_TIMESTAMP,
+        removal_reason = $2,
+        removed_by = $3,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+      `,
+      [attendee.registration_id, removalReason, req.user.userId]
+    );
+
+    try {
+      await notifyAttendeeRemovedFromEvent({
+        attendee,
+        event,
+        reason: removalReason,
+      });
+    } catch (notificationError) {
+      console.error("Attendee removal notification failed:", notificationError.message);
+    }
+
+    return successResponse(
+      res,
+      { registration: result.rows[0], removed_attendee_id: attendee.id },
+      "Attendee removed from event successfully"
+    );
   } catch (error) {
     return next(error);
   }
@@ -1267,6 +1573,107 @@ async function approveEvent(req, res, next) {
     return successResponse(res, result.rows[0], "Event approved successfully");
   } catch (error) {
     return next(error);
+  }
+}
+
+async function approveEventUpdate(req, res, next) {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+
+    await client.query("BEGIN");
+
+    const existing = await client.query(
+      `
+      SELECT
+        pur.id,
+        pur.event_id,
+        pur.pending_data,
+        e.organizer_id,
+        u.full_name AS organizer_name,
+        u.email AS organizer_email
+      FROM event_update_requests pur
+      JOIN events e ON e.id = pur.event_id
+      JOIN users u ON u.id = e.organizer_id
+      WHERE pur.id = $1 AND pur.status = 'pending'
+      FOR UPDATE OF pur
+      `,
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return errorResponse(res, 404, "Pending event update not found");
+    }
+
+    const request = existing.rows[0];
+    const payload = request.pending_data;
+
+    const eventResult = await client.query(
+      `
+      UPDATE events
+      SET
+        title = $1,
+        event_description = $2,
+        category = $3,
+        event_date = $4,
+        start_time = $5,
+        end_time = $6,
+        location_name = $7,
+        location_address = $8,
+        location_city = $9,
+        location_state = $10,
+        location_zip_code = $11,
+        latitude = $12,
+        longitude = $13,
+        capacity = $14,
+        is_free = $15,
+        ticket_price = $16,
+        schedule_notes = $17,
+        calendar_link = $18,
+        approval_status = 'approved',
+        rejection_reason = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $19
+      RETURNING *
+      `,
+      [...eventUpdateValues(payload), request.event_id]
+    );
+
+    await client.query(
+      `
+      UPDATE event_update_requests
+      SET status = 'approved', rejection_reason = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      `,
+      [request.id]
+    );
+
+    await client.query("COMMIT");
+
+    const organizer = {
+      id: request.organizer_id,
+      full_name: request.organizer_name,
+      email: request.organizer_email,
+    };
+
+    try {
+      await notifyEventApprovalStatus({
+        organizer,
+        event: eventResult.rows[0],
+        status: "approved",
+        isUpdate: true,
+      });
+    } catch (notificationError) {
+      console.error("Update approval notification failed:", notificationError.message);
+    }
+
+    return successResponse(res, eventResult.rows[0], "Event update approved successfully");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    return next(error);
+  } finally {
+    client.release();
   }
 }
 
@@ -1352,6 +1759,94 @@ async function rejectEvent(req, res, next) {
   }
 }
 
+async function rejectEventUpdate(req, res, next) {
+  try {
+    const { id } = req.params;
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const raw =
+      hasOwn(body, "rejection_reason") && body.rejection_reason !== undefined
+        ? body.rejection_reason
+        : hasOwn(body, "reason") && body.reason !== undefined
+          ? body.reason
+          : undefined;
+
+    if (raw !== undefined && raw !== null && typeof raw !== "string") {
+      return errorResponse(res, 400, "Rejection reason is required as non-empty text");
+    }
+
+    const rejection_reason = typeof raw === "string" ? raw.trim() : "";
+
+    if (!rejection_reason) {
+      return errorResponse(res, 400, "Rejection reason is required");
+    }
+    if (rejection_reason.length > MAX_REJECTION_REASON_LENGTH) {
+      return errorResponse(
+        res,
+        400,
+        `Rejection reason must be at most ${MAX_REJECTION_REASON_LENGTH} characters`
+      );
+    }
+
+    const existing = await pool.query(
+      `
+      SELECT
+        pur.id,
+        pur.event_id,
+        pur.pending_data,
+        e.title,
+        e.organizer_id,
+        u.full_name AS organizer_name,
+        u.email AS organizer_email
+      FROM event_update_requests pur
+      JOIN events e ON e.id = pur.event_id
+      JOIN users u ON u.id = e.organizer_id
+      WHERE pur.id = $1 AND pur.status = 'pending'
+      `,
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      return errorResponse(res, 404, "Pending event update not found");
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE event_update_requests
+      SET
+        status = 'rejected',
+        rejection_reason = $2,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id, rejection_reason]
+    );
+
+    const request = existing.rows[0];
+    const organizer = {
+      id: request.organizer_id,
+      full_name: request.organizer_name,
+      email: request.organizer_email,
+    };
+    const proposedTitle = request.pending_data?.title || request.title;
+
+    try {
+      await notifyEventApprovalStatus({
+        organizer,
+        event: { id: request.event_id, title: proposedTitle },
+        status: "rejected",
+        isUpdate: true,
+      });
+    } catch (notificationError) {
+      console.error("Update rejection notification failed:", notificationError.message);
+    }
+
+    return successResponse(res, result.rows[0], "Event update rejected successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getEventCategories,
   getAllEvents,
@@ -1359,6 +1854,8 @@ module.exports = {
   getMyEvents,
   getMyRegisteredEvents,
   getPendingEvents,
+  getPendingEventUpdates,
+  getMyRejectedEventUpdates,
   getAllEventsForAdmin,
   getEventAttendees,
   getEventById,
@@ -1368,6 +1865,9 @@ module.exports = {
   registerForEvent,
   getMyRsvpStatus,
   unregisterFromEvent,
+  removeAttendeeFromEvent,
   approveEvent,
+  approveEventUpdate,
   rejectEvent,
+  rejectEventUpdate,
 };

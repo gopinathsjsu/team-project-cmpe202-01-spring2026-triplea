@@ -150,18 +150,6 @@ export default function EventListPage() {
             onChange={(e) => setLocation(e.target.value)}
           />
 
-          <p className="filter-label" style={{ marginTop: "0.75rem" }}>
-            Price
-          </p>
-          <label className="filter-check">
-            <input type="checkbox" />
-            Free
-          </label>
-          <label className="filter-check">
-            <input type="checkbox" />
-            All events
-          </label>
-
           <button type="button" className="btn btn-secondary btn-block" style={{ marginTop: "0.75rem" }} onClick={clearFilters}>
             Clear filters
           </button>
@@ -192,10 +180,10 @@ export default function EventListPage() {
             Browse upcoming campus and community events (today and later). Past events you joined appear on your
             dashboard under Past events.
           </p>
-          {loading ? <p className="text-muted">Loading events…</p> : null}
-          {error ? <p className="text-error">{error}</p> : null}
+          {loading ? <p className="text-muted" role="status" aria-live="polite">Loading events…</p> : null}
+          {error ? <p className="text-error" role="alert">{error}</p> : null}
           {!loading && !error && events.length === 0 ? (
-            <p className="text-muted">No current events match your filters.</p>
+            <p className="text-muted" role="status">No current events match your filters.</p>
           ) : null}
           {!loading && !error && events.length > 0 ? (
             <div className="event-grid">

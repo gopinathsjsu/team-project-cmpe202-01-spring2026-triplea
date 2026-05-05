@@ -26,7 +26,7 @@ export default function Navbar() {
   const linkClass = ({ isActive }) => `nav-link ${isActive ? "nav-link--active" : ""}`;
 
   return (
-    <nav className="top-nav">
+    <nav className="top-nav" aria-label="Primary navigation">
       <span className="top-nav__brand">EventHub</span>
       <NavLink to="/events" className={linkClass}>
         Current events
@@ -41,7 +41,7 @@ export default function Navbar() {
           <NavLink to="/dashboard" className={linkClass}>
             Dashboard
           </NavLink>
-          <button type="button" className="nav-btn" onClick={handleLogout}>
+          <button type="button" className="nav-btn" onClick={handleLogout} aria-label="Log out of EventHub">
             Log out
           </button>
         </>

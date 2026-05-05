@@ -42,7 +42,7 @@ async function notifyRegistrationConfirmation({ attendee, event }) {
   });
 }
 
-async function notifyEventApprovalStatus({ organizer, event, status }) {
+async function notifyEventApprovalStatus({ organizer, event, status, isUpdate = false }) {
   const isApproved = status === "approved";
 
   const type = isApproved
@@ -50,8 +50,8 @@ async function notifyEventApprovalStatus({ organizer, event, status }) {
     : "rejection_notification";
 
   const message = isApproved
-    ? `Your event "${event.title}" has been approved.`
-    : `Your event "${event.title}" has been rejected.`;
+    ? `Your ${isUpdate ? "event update" : "event"} "${event.title}" has been approved.`
+    : `Your ${isUpdate ? "event update" : "event"} "${event.title}" has been rejected.`;
 
   await createNotification({
     userId: organizer.id,
@@ -63,11 +63,11 @@ async function notifyEventApprovalStatus({ organizer, event, status }) {
   await sendEmail({
     to: organizer.email,
     subject: isApproved
-      ? `Event approved: ${event.title}`
-      : `Event rejected: ${event.title}`,
+      ? `${isUpdate ? "Event update" : "Event"} approved: ${event.title}`
+      : `${isUpdate ? "Event update" : "Event"} rejected: ${event.title}`,
     text: message,
     html: `
-      <h2>${isApproved ? "Event Approved" : "Event Rejected"}</h2>
+      <h2>${isUpdate ? "Event Update" : "Event"} ${isApproved ? "Approved" : "Rejected"}</h2>
       <p>${message}</p>
     `,
   });
@@ -90,6 +90,28 @@ async function notifyRegistrationCancelled({ attendee, event }) {
     html: `
       <h2>Registration Cancelled</h2>
       <p>${message}</p>
+    `,
+  });
+}
+
+async function notifyAttendeeRemovedFromEvent({ attendee, event, reason }) {
+  const message = `You have been removed from "${event.title}". Reason: ${reason}`;
+
+  await createNotification({
+    userId: attendee.id,
+    eventId: event.id,
+    type: "attendee_removed",
+    message,
+  });
+
+  await sendEmail({
+    to: attendee.email,
+    subject: `You have been removed from: ${event.title}`,
+    text: message,
+    html: `
+      <h2>You Have Been Removed</h2>
+      <p>You have been removed from <strong>${event.title}</strong>.</p>
+      <p><strong>Reason:</strong> ${reason}</p>
     `,
   });
 }
@@ -143,6 +165,7 @@ module.exports = {
   notifyRegistrationConfirmation,
   notifyEventApprovalStatus,
   notifyRegistrationCancelled,
+  notifyAttendeeRemovedFromEvent,
   notifyEventDeleted,
   notifyEventReminder,
 };

@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   approveEventById,
+  approveEventUpdateById,
   deleteEventById,
   getAllEventsForAdmin,
   getMyEvents,
+  getMyRejectedEventUpdates,
   getMyRegisteredEvents,
   getPendingEvents,
+  getPendingEventUpdates,
   rejectEventById,
+  rejectEventUpdateById,
 } from "../services/eventService";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
@@ -44,19 +48,27 @@ export default function DashboardPage() {
   const isAdmin = role === "admin";
 
   const [createdEvents, setCreatedEvents] = useState([]);
+  const [rejectedEventUpdates, setRejectedEventUpdates] = useState([]);
   const [registeredEvents, setRegisteredEvents] = useState([]);
   const [pendingEvents, setPendingEvents] = useState([]);
+  const [pendingEventUpdates, setPendingEventUpdates] = useState([]);
   const [allAdminEvents, setAllAdminEvents] = useState([]);
   const [createdLoading, setCreatedLoading] = useState(isOrganizer);
+  const [rejectedUpdatesLoading, setRejectedUpdatesLoading] = useState(isOrganizer);
   const [registeredLoading, setRegisteredLoading] = useState(isAttendee);
   const [pendingLoading, setPendingLoading] = useState(isAdmin);
+  const [pendingUpdatesLoading, setPendingUpdatesLoading] = useState(isAdmin);
   const [allAdminLoading, setAllAdminLoading] = useState(isAdmin);
   const [createdError, setCreatedError] = useState("");
+  const [rejectedUpdatesError, setRejectedUpdatesError] = useState("");
   const [registeredError, setRegisteredError] = useState("");
   const [pendingError, setPendingError] = useState("");
+  const [pendingUpdatesError, setPendingUpdatesError] = useState("");
   const [allAdminError, setAllAdminError] = useState("");
   const [rejectingEventId, setRejectingEventId] = useState(null);
   const [rejectCommentDraft, setRejectCommentDraft] = useState("");
+  const [rejectingUpdateId, setRejectingUpdateId] = useState(null);
+  const [rejectUpdateCommentDraft, setRejectUpdateCommentDraft] = useState("");
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
 
   useEffect(() => {
@@ -86,6 +98,41 @@ export default function DashboardPage() {
       } finally {
         if (!cancelled) {
           setCreatedLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOrganizer]);
+
+  useEffect(() => {
+    if (!isOrganizer) {
+      setRejectedUpdatesLoading(false);
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setRejectedUpdatesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setRejectedUpdatesLoading(true);
+      setRejectedUpdatesError("");
+      try {
+        const res = await getMyRejectedEventUpdates(token);
+        if (!cancelled) {
+          setRejectedEventUpdates(Array.isArray(res?.data) ? res.data : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setRejectedUpdatesError(e?.message || "Could not load rejected event updates.");
+          setRejectedEventUpdates([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setRejectedUpdatesLoading(false);
         }
       }
     })();
@@ -166,6 +213,41 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAdmin) {
+      setPendingUpdatesLoading(false);
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setPendingUpdatesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setPendingUpdatesLoading(true);
+      setPendingUpdatesError("");
+      try {
+        const res = await getPendingEventUpdates(token);
+        if (!cancelled) {
+          setPendingEventUpdates(Array.isArray(res?.data) ? res.data : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setPendingUpdatesError(e?.message || "Could not load pending event updates.");
+          setPendingEventUpdates([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setPendingUpdatesLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) {
       setAllAdminLoading(false);
       return;
     }
@@ -224,9 +306,9 @@ export default function DashboardPage() {
   );
 
   const renderEventRows = (list, options = {}) => {
-    const { showRejectedReason = false } = options;
+    const { showRejectedReason = false, showApprovalStatus = true } = options;
     if (list.length === 0) {
-      return <p className="text-muted">No events.</p>;
+      return <p className="text-muted" role="status">No events.</p>;
     }
     return (
       <div style={{ display: "grid", gap: "0.5rem" }}>
@@ -238,12 +320,42 @@ export default function DashboardPage() {
               {ev.start_time ? ` · ${ev.start_time}` : ""}
               {ev.location_name ? ` · ${ev.location_name}` : ""}
             </p>
-            <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
-              Approval: {ev.approval_status ?? "—"}
-            </p>
+            {showApprovalStatus ? (
+              <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
+                Approval: {ev.approval_status ?? "—"}
+              </p>
+            ) : null}
             {showRejectedReason && ev.approval_status === "rejected" && ev.rejection_reason?.trim() ? (
-              <p className="text-error" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
+              <p className="text-error" role="status" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
                 <strong>Admin note:</strong> {ev.rejection_reason.trim()}
+              </p>
+            ) : null}
+          </Link>
+        ))}
+      </div>
+    );
+  };
+
+  const renderRejectedUpdateRows = (list) => {
+    if (list.length === 0) {
+      return <p className="text-muted" role="status">No disapproved event updates.</p>;
+    }
+    return (
+      <div style={{ display: "grid", gap: "0.5rem" }}>
+        {list.map((req) => (
+          <Link key={req.update_request_id} to={`/events/${req.event_id}`} className="dash-event-link">
+            <strong>{req.proposed_title || req.current_title || "Untitled event"}</strong>
+            <p className="text-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8125rem" }}>
+              Current event: {req.current_title || "Untitled event"}
+            </p>
+            <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
+              Proposed date: {formatDisplayDate(req.proposed_event_date || req.current_event_date)}
+              {req.proposed_start_time ? ` · ${req.proposed_start_time}` : ""}
+              {req.proposed_location_name ? ` · ${req.proposed_location_name}` : ""}
+            </p>
+            {req.rejection_reason?.trim() ? (
+              <p className="text-error" role="status" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
+                <strong>Admin note:</strong> {req.rejection_reason.trim()}
               </p>
             ) : null}
           </Link>
@@ -279,6 +391,11 @@ export default function DashboardPage() {
               Disapproved events
             </a>
           </p>
+          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
+            <a href="#my-disapproved-updates" style={{ color: "inherit" }}>
+              Disapproved updates
+            </a>
+          </p>
         </aside>
 
         <section className="dash-content">
@@ -299,8 +416,8 @@ export default function DashboardPage() {
             <div className="dash-stat">Disapproved: {organizerDisapprovedEvents.length}</div>
           </div>
 
-          {createdLoading ? <p className="text-muted">Loading your events…</p> : null}
-          {createdError ? <p className="text-error">{createdError}</p> : null}
+          {createdLoading ? <p className="text-muted" role="status" aria-live="polite">Loading your events…</p> : null}
+          {createdError ? <p className="text-error" role="alert">{createdError}</p> : null}
 
           <section id="my-pending" className="card card-pad dash-section">
             <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
@@ -334,6 +451,16 @@ export default function DashboardPage() {
             </h3>
             <p className="page-lede">Events an admin marked as rejected. They are hidden from the public list.</p>
             {!createdLoading ? renderEventRows(organizerDisapprovedEvents, { showRejectedReason: true }) : null}
+          </section>
+
+          <section id="my-disapproved-updates" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Disapproved event updates
+            </h3>
+            <p className="page-lede">Edits to approved events that an admin rejected. The live event still uses the approved details.</p>
+            {rejectedUpdatesLoading ? <p className="text-muted" role="status" aria-live="polite">Loading disapproved updates…</p> : null}
+            {rejectedUpdatesError ? <p className="text-error" role="alert">{rejectedUpdatesError}</p> : null}
+            {!rejectedUpdatesLoading && !rejectedUpdatesError ? renderRejectedUpdateRows(rejectedEventUpdates) : null}
           </section>
         </section>
       </main>
@@ -376,15 +503,15 @@ export default function DashboardPage() {
             <div className="dash-stat">Past: {past.length}</div>
           </div>
 
-          {registeredLoading ? <p className="text-muted">Loading your registrations…</p> : null}
-          {registeredError ? <p className="text-error">{registeredError}</p> : null}
+          {registeredLoading ? <p className="text-muted" role="status" aria-live="polite">Loading your registrations…</p> : null}
+          {registeredError ? <p className="text-error" role="alert">{registeredError}</p> : null}
 
           <section id="reg-upcoming" className="card card-pad dash-section">
             <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
               Upcoming events
             </h3>
             <p className="page-lede">Registered events dated today or later.</p>
-            {!registeredLoading ? renderEventRows(upcoming) : null}
+            {!registeredLoading ? renderEventRows(upcoming, { showApprovalStatus: false }) : null}
           </section>
 
           <section id="reg-past" className="card card-pad dash-section">
@@ -392,7 +519,7 @@ export default function DashboardPage() {
               Past events
             </h3>
             <p className="page-lede">Registered events dated before today.</p>
-            {!registeredLoading ? renderEventRows(past) : null}
+            {!registeredLoading ? renderEventRows(past, { showApprovalStatus: false }) : null}
           </section>
         </section>
       </main>
@@ -456,6 +583,52 @@ export default function DashboardPage() {
       }
     };
 
+    const handleApproveUpdate = async (requestId) => {
+      if (!token) {
+        return;
+      }
+      try {
+        const response = await approveEventUpdateById(requestId, token);
+        const saved = response?.data;
+        setPendingEventUpdates((prev) => prev.filter((req) => req.update_request_id !== requestId));
+        if (saved?.id != null) {
+          setAllAdminEvents((prev) =>
+            prev.map((ev) =>
+              ev.id === saved.id ? { ...ev, ...saved, approval_status: "approved", rejection_reason: null } : ev
+            )
+          );
+        }
+        if (requestId === rejectingUpdateId) {
+          setRejectingUpdateId(null);
+          setRejectUpdateCommentDraft("");
+        }
+      } catch (e) {
+        window.alert(e?.message || "Failed to approve event update");
+      }
+    };
+
+    const submitDisapprovalForUpdate = async (requestId) => {
+      if (!token) {
+        return;
+      }
+      const trimmed = rejectUpdateCommentDraft.trim();
+      if (!trimmed) {
+        window.alert("Rejection comment is required.");
+        return;
+      }
+      setRejectSubmitting(true);
+      try {
+        await rejectEventUpdateById(requestId, token, { rejection_reason: trimmed });
+        setPendingEventUpdates((prev) => prev.filter((req) => req.update_request_id !== requestId));
+        setRejectingUpdateId(null);
+        setRejectUpdateCommentDraft("");
+      } catch (e) {
+        window.alert(e?.message || "Failed to disapprove event update");
+      } finally {
+        setRejectSubmitting(false);
+      }
+    };
+
     const handleDelete = async (eventId) => {
       if (!token) {
         return;
@@ -468,6 +641,7 @@ export default function DashboardPage() {
         await deleteEventById(eventId, token);
         setAllAdminEvents((prev) => prev.filter((ev) => ev.id !== eventId));
         setPendingEvents((prev) => prev.filter((ev) => ev.id !== eventId));
+        setPendingEventUpdates((prev) => prev.filter((req) => req.event_id !== eventId));
       } catch (e) {
         window.alert(e?.message || "Failed to delete event");
       }
@@ -481,6 +655,11 @@ export default function DashboardPage() {
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
             <a href="#pending-events" style={{ color: "inherit" }}>
               Pending events
+            </a>
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
+            <a href="#pending-event-updates" style={{ color: "inherit" }}>
+              Pending updates
             </a>
           </p>
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
@@ -500,11 +679,11 @@ export default function DashboardPage() {
             <h3 id="pending-events" className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
               Pending events
             </h3>
-            {pendingLoading ? <p className="text-muted">Loading pending events…</p> : null}
-            {pendingError ? <p className="text-error">{pendingError}</p> : null}
+            {pendingLoading ? <p className="text-muted" role="status" aria-live="polite">Loading pending events…</p> : null}
+            {pendingError ? <p className="text-error" role="alert">{pendingError}</p> : null}
             {!pendingLoading && !pendingError ? (
               pendingEvents.length === 0 ? (
-                <p className="text-muted">No pending events.</p>
+                <p className="text-muted" role="status">No pending events.</p>
               ) : (
                 <div style={{ display: "grid", gap: "0.5rem" }}>
                   {pendingEvents.map((ev) => (
@@ -540,10 +719,11 @@ export default function DashboardPage() {
                       </div>
                       {rejectingEventId === ev.id ? (
                         <div className="detail-actions" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
-                          <label className="label" style={{ fontSize: "0.8125rem" }}>
+                          <label htmlFor={`reject-event-${ev.id}`} className="label" style={{ fontSize: "0.8125rem" }}>
                             Comment for organizer (required)
                           </label>
                           <textarea
+                            id={`reject-event-${ev.id}`}
                             className="input textarea"
                             value={rejectCommentDraft}
                             onChange={(e) => setRejectCommentDraft(e.target.value)}
@@ -580,16 +760,105 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
+          <div id="pending-event-updates" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Pending event updates
+            </h3>
+            <p className="page-lede">Edits to already approved events. The old approved details stay public until approval.</p>
+            {pendingUpdatesLoading ? <p className="text-muted" role="status" aria-live="polite">Loading pending updates…</p> : null}
+            {pendingUpdatesError ? <p className="text-error" role="alert">{pendingUpdatesError}</p> : null}
+            {!pendingUpdatesLoading && !pendingUpdatesError ? (
+              pendingEventUpdates.length === 0 ? (
+                <p className="text-muted" role="status">No pending event updates.</p>
+              ) : (
+                <div style={{ display: "grid", gap: "0.5rem" }}>
+                  {pendingEventUpdates.map((req) => (
+                    <div key={req.update_request_id} className="dash-event-row">
+                      <div className="dash-event-row__top">
+                        <Link to={`/events/${req.event_id}`} style={{ textDecoration: "none", color: "inherit", flex: 1 }}>
+                          <strong>{req.proposed_title || req.current_title || "Untitled event"}</strong>
+                          <p className="text-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8125rem" }}>
+                            Current: {req.current_title || "Untitled event"}
+                          </p>
+                          <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
+                            Proposed date: {formatDisplayDate(req.proposed_event_date || req.current_event_date)}
+                            {req.proposed_start_time ? ` · ${req.proposed_start_time}` : ""}
+                            {req.proposed_location_name ? ` · ${req.proposed_location_name}` : ""}
+                          </p>
+                          <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
+                            Organizer: {req.organizer_full_name || `ID ${req.requested_by}`}
+                          </p>
+                        </Link>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flexShrink: 0 }}>
+                          <button type="button" className="btn btn-primary" onClick={() => handleApproveUpdate(req.update_request_id)}>
+                            Approve update
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setRejectingUpdateId(req.update_request_id);
+                              setRejectUpdateCommentDraft("");
+                            }}
+                            disabled={rejectSubmitting}
+                          >
+                            Disapprove
+                          </button>
+                        </div>
+                      </div>
+                      {rejectingUpdateId === req.update_request_id ? (
+                        <div className="detail-actions" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
+                          <label htmlFor={`reject-update-${req.update_request_id}`} className="label" style={{ fontSize: "0.8125rem" }}>
+                            Comment for organizer (required)
+                          </label>
+                          <textarea
+                            id={`reject-update-${req.update_request_id}`}
+                            className="input textarea"
+                            value={rejectUpdateCommentDraft}
+                            onChange={(e) => setRejectUpdateCommentDraft(e.target.value)}
+                            rows={4}
+                            placeholder="Briefly explain why this update was disapproved…"
+                          />
+                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              disabled={rejectSubmitting}
+                              onClick={() => submitDisapprovalForUpdate(req.update_request_id)}
+                            >
+                              {rejectSubmitting ? "Submitting…" : "Submit disapproval"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              disabled={rejectSubmitting}
+                              onClick={() => {
+                                setRejectingUpdateId(null);
+                                setRejectUpdateCommentDraft("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : null}
+          </div>
+
           <div id="disapproved-events-admin" className="card card-pad dash-section">
             <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
               Disapproved events
             </h3>
             <p className="page-lede">Submissions that were rejected.</p>
-            {allAdminLoading ? <p className="text-muted">Loading…</p> : null}
-            {allAdminError ? <p className="text-error">{allAdminError}</p> : null}
+            {allAdminLoading ? <p className="text-muted" role="status" aria-live="polite">Loading…</p> : null}
+            {allAdminError ? <p className="text-error" role="alert">{allAdminError}</p> : null}
             {!allAdminLoading && !allAdminError ? (
               adminDisapprovedEvents.length === 0 ? (
-                <p className="text-muted">No disapproved events.</p>
+                <p className="text-muted" role="status">No disapproved events.</p>
               ) : (
                 <div style={{ display: "grid", gap: "0.5rem" }}>
                   {adminDisapprovedEvents.map((ev) => (
@@ -619,11 +888,11 @@ export default function DashboardPage() {
             <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
               All events
             </h3>
-            {allAdminLoading ? <p className="text-muted">Loading all events…</p> : null}
-            {allAdminError ? <p className="text-error">{allAdminError}</p> : null}
+            {allAdminLoading ? <p className="text-muted" role="status" aria-live="polite">Loading all events…</p> : null}
+            {allAdminError ? <p className="text-error" role="alert">{allAdminError}</p> : null}
             {!allAdminLoading && !allAdminError ? (
               allAdminEvents.length === 0 ? (
-                <p className="text-muted">No events.</p>
+                <p className="text-muted" role="status">No events.</p>
               ) : (
                 <div style={{ display: "grid", gap: "0.5rem" }}>
                   {allAdminEvents.map((ev) => (
@@ -640,10 +909,59 @@ export default function DashboardPage() {
                             Status: {ev.approval_status ?? "—"} · Organizer: {ev.organizer_full_name || `ID ${ev.organizer_id}`}
                           </p>
                         </Link>
-                        <button type="button" className="btn btn-danger" onClick={() => handleDelete(ev.id)}>
-                          Delete
-                        </button>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setRejectingEventId(`all-${ev.id}`);
+                              setRejectCommentDraft("");
+                            }}
+                            disabled={rejectSubmitting || ev.approval_status === "rejected"}
+                          >
+                            {ev.approval_status === "rejected" ? "Disapproved" : "Disapprove"}
+                          </button>
+                          <button type="button" className="btn btn-danger" onClick={() => handleDelete(ev.id)}>
+                            Delete
+                          </button>
+                        </div>
                       </div>
+                      {rejectingEventId === `all-${ev.id}` ? (
+                        <div className="detail-actions" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
+                          <label htmlFor={`reject-all-event-${ev.id}`} className="label" style={{ fontSize: "0.8125rem" }}>
+                            Comment for organizer (required)
+                          </label>
+                          <textarea
+                            id={`reject-all-event-${ev.id}`}
+                            className="input textarea"
+                            value={rejectCommentDraft}
+                            onChange={(e) => setRejectCommentDraft(e.target.value)}
+                            rows={4}
+                            placeholder="Briefly explain why this event was disapproved…"
+                          />
+                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              disabled={rejectSubmitting}
+                              onClick={() => submitDisapprovalForEvent(ev.id)}
+                            >
+                              {rejectSubmitting ? "Submitting…" : "Submit disapproval"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              disabled={rejectSubmitting}
+                              onClick={() => {
+                                setRejectingEventId(null);
+                                setRejectCommentDraft("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>

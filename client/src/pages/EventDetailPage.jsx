@@ -2,7 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import RSVPButton from "../components/RSVPButton";
 import EventMap from "../components/EventMap";
-import { approveEventById, deleteEventById, getEventAttendees, getEventById, rejectEventById } from "../services/eventService";
+import {
+  approveEventById,
+  deleteEventById,
+  getEventAttendees,
+  getEventById,
+  rejectEventById,
+  removeEventAttendee,
+} from "../services/eventService";
 import { decodeJwtPayload } from "../utils/decodeJwtPayload";
 import { formatDisplayDate } from "../utils/formatDisplayDate";
 
@@ -33,6 +40,9 @@ export default function EventDetailPage() {
   const [attendeesError, setAttendeesError] = useState("");
   const [rejectFormOpen, setRejectFormOpen] = useState(false);
   const [rejectDraft, setRejectDraft] = useState("");
+  const [removingAttendeeId, setRemovingAttendeeId] = useState(null);
+  const [removeAttendeeReason, setRemoveAttendeeReason] = useState("");
+  const [removeAttendeeLoading, setRemoveAttendeeLoading] = useState(false);
 
   const goToEventsWithNotFoundNotice = useCallback(() => {
     window.alert("Event not found");
@@ -111,6 +121,7 @@ export default function EventDetailPage() {
 
   const decoded = decodeJwtPayload(localStorage.getItem("token"));
   const isAdmin = decoded?.role === "admin";
+  const isAttendee = decoded?.role === "attendee";
   const isOrganizerOwner =
     decoded?.role === "organizer" &&
     Number(decoded?.userId) === Number(event?.organizer_id);
@@ -157,7 +168,14 @@ export default function EventDetailPage() {
   }, [event?.id, canSeeAttendees]);
 
   useEffect(() => {
-    if (event?.approval_status !== "pending") {
+    setRejectFormOpen(false);
+    setRejectDraft("");
+    setRemovingAttendeeId(null);
+    setRemoveAttendeeReason("");
+  }, [event?.id]);
+
+  useEffect(() => {
+    if (event?.approval_status === "rejected") {
       setRejectFormOpen(false);
       setRejectDraft("");
     }
@@ -166,7 +184,7 @@ export default function EventDetailPage() {
   if (loading) {
     return (
       <main className="page">
-        <p className="text-muted loading-shimmer">Loading event…</p>
+        <p className="text-muted loading-shimmer" role="status" aria-live="polite">Loading event…</p>
       </main>
     );
   }
@@ -174,7 +192,7 @@ export default function EventDetailPage() {
   if (error) {
     return (
       <main className="page">
-        <p className="text-error">{error}</p>
+        <p className="text-error" role="alert">{error}</p>
         <p>
           <Link to="/events">← Back to current events</Link>
         </p>
@@ -185,7 +203,7 @@ export default function EventDetailPage() {
   if (!event) {
     return (
       <main className="page">
-        <p>No event data available.</p>
+        <p role="status">No event data available.</p>
         <p>
           <Link to="/events">← Back to current events</Link>
         </p>
@@ -193,13 +211,10 @@ export default function EventDetailPage() {
     );
   }
 
-  const formatPrice = () => {
-    if (event.is_free) {
-      return "Free";
-    }
-    const price = event.ticket_price != null ? String(event.ticket_price) : "—";
-    return `$${price}`;
-  };
+  const adminCanDisapprove =
+    isAdmin && (event.approval_status === "pending" || event.approval_status === "approved");
+
+  const formatPrice = () => "Free";
 
   const locationLines = [
     event.location_name,
@@ -254,6 +269,31 @@ export default function EventDetailPage() {
       window.alert(err?.message || "Failed to disapprove event");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const submitRemoveAttendee = async (attendeeId) => {
+    const token = localStorage.getItem("token");
+    if (!token || !event?.id || attendeeId == null) {
+      return;
+    }
+    const trimmed = removeAttendeeReason.trim();
+    if (!trimmed) {
+      window.alert("Removal reason is required.");
+      return;
+    }
+    setRemoveAttendeeLoading(true);
+    try {
+      await removeEventAttendee(event.id, attendeeId, token, { removal_reason: trimmed });
+      window.alert("Attendee removed from this event.");
+      setAttendees((prev) => prev.filter((attendee) => Number(attendee.id) !== Number(attendeeId)));
+      setRemovingAttendeeId(null);
+      setRemoveAttendeeReason("");
+      await reloadEvent();
+    } catch (err) {
+      window.alert(err?.message || "Failed to remove attendee");
+    } finally {
+      setRemoveAttendeeLoading(false);
     }
   };
 
@@ -316,17 +356,70 @@ export default function EventDetailPage() {
           {canSeeAttendees ? (
             <section style={{ marginTop: "1.25rem", borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
               <div className="detail-section-title">RSVP attendees</div>
-              {attendeesLoading ? <p className="text-muted">Loading attendee list…</p> : null}
-              {attendeesError ? <p className="text-error">{attendeesError}</p> : null}
+              {attendeesLoading ? <p className="text-muted" role="status" aria-live="polite">Loading attendee list…</p> : null}
+              {attendeesError ? <p className="text-error" role="alert">{attendeesError}</p> : null}
               {!attendeesLoading && !attendeesError ? (
                 attendees.length === 0 ? (
-                  <p className="text-muted">No attendees yet.</p>
+                  <p className="text-muted" role="status">No attendees yet.</p>
                 ) : (
-                  <ul style={{ margin: 0, paddingLeft: "1.25rem", display: "grid", gap: "0.35rem" }}>
+                  <ul style={{ margin: 0, paddingLeft: "1.25rem", display: "grid", gap: "0.75rem" }}>
                     {attendees.map((user) => (
                       <li key={user.id}>
-                        <span>{user.full_name || "Unknown attendee"}</span>
-                        <span className="text-muted"> ({user.email || "no email"})</span>
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                          <div>
+                            <span>{user.full_name || "Unknown attendee"}</span>
+                            <span className="text-muted"> ({user.email || "no email"})</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            style={{ padding: "0.35rem 0.65rem", fontSize: "0.8125rem" }}
+                            disabled={removeAttendeeLoading}
+                            onClick={() => {
+                              setRemovingAttendeeId(user.id);
+                              setRemoveAttendeeReason("");
+                            }}
+                          >
+                            Remove attendee
+                          </button>
+                        </div>
+                        {Number(removingAttendeeId) === Number(user.id) ? (
+                          <div className="detail-actions" style={{ marginTop: "0.5rem" }}>
+                            <label htmlFor={`remove-attendee-reason-${user.id}`} className="label" style={{ fontSize: "0.8125rem" }}>
+                              Reason for removal (required)
+                            </label>
+                            <textarea
+                              id={`remove-attendee-reason-${user.id}`}
+                              className="input textarea"
+                              value={removeAttendeeReason}
+                              onChange={(e) => setRemoveAttendeeReason(e.target.value)}
+                              rows={3}
+                              placeholder="Explain why this attendee is being removed…"
+                              disabled={removeAttendeeLoading}
+                            />
+                            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                className="btn btn-danger"
+                                disabled={removeAttendeeLoading}
+                                onClick={() => submitRemoveAttendee(user.id)}
+                              >
+                                {removeAttendeeLoading ? "Removing…" : "Confirm remove"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost"
+                                disabled={removeAttendeeLoading}
+                                onClick={() => {
+                                  setRemovingAttendeeId(null);
+                                  setRemoveAttendeeReason("");
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -363,7 +456,7 @@ export default function EventDetailPage() {
           <p style={{ margin: "0 0 0.35rem" }}>
             <strong>Price</strong> {formatPrice()}
           </p>
-          {isAdmin || !isOrganizerOwner ? (
+          {!isAttendee && (isAdmin || !isOrganizerOwner) ? (
             <p style={{ margin: "0 0 0.75rem" }}>
               <strong>Status</strong> {event.approval_status ?? "—"}
             </p>
@@ -388,7 +481,7 @@ export default function EventDetailPage() {
                     ? "Working…"
                     : "Approve"}
               </button>
-              {event.approval_status === "pending" && !rejectFormOpen ? (
+              {adminCanDisapprove && !rejectFormOpen ? (
                 <button
                   type="button"
                   className="btn btn-secondary btn-block"
@@ -401,12 +494,13 @@ export default function EventDetailPage() {
                   Disapprove
                 </button>
               ) : null}
-              {event.approval_status === "pending" && rejectFormOpen ? (
+              {adminCanDisapprove && rejectFormOpen ? (
                 <div className="detail-actions">
-                  <label className="label" style={{ fontSize: "0.8125rem" }}>
+                  <label htmlFor="event-rejection-comment" className="label" style={{ fontSize: "0.8125rem" }}>
                     Comment for organizer (required)
                   </label>
                   <textarea
+                    id="event-rejection-comment"
                     className="input textarea"
                     value={rejectDraft}
                     onChange={(e) => setRejectDraft(e.target.value)}
@@ -441,6 +535,16 @@ export default function EventDetailPage() {
               <p className="callout callout--neutral" style={{ margin: 0, fontSize: "0.9375rem" }}>
                 <strong>Status</strong> {formatApprovalStatusLabel(event.approval_status)}
               </p>
+              {event.pending_update_request_id ? (
+                <p className="callout callout--neutral" style={{ margin: 0, fontSize: "0.875rem" }}>
+                  An edited version is waiting for admin approval. The live event still shows the approved details.
+                </p>
+              ) : null}
+              {event.latest_update_rejection_reason?.trim() ? (
+                <p className="callout callout--warn" style={{ margin: 0, fontSize: "0.875rem", whiteSpace: "pre-wrap" }}>
+                  <strong>Latest update disapproval note:</strong> {event.latest_update_rejection_reason.trim()}
+                </p>
+              ) : null}
               {event.approval_status === "rejected" && event.rejection_reason?.trim() ? (
                 <p className="callout callout--warn" style={{ margin: 0, fontSize: "0.875rem", whiteSpace: "pre-wrap" }}>
                   <strong>Why it was disapproved:</strong> {event.rejection_reason.trim()}
@@ -455,6 +559,16 @@ export default function EventDetailPage() {
               onSuccess={reloadEvent}
             />
           )}
+          {isAttendee && event.attendee_removal_reason?.trim() ? (
+            <p className="callout callout--warn" style={{ margin: "0.75rem 0 0", fontSize: "0.875rem", whiteSpace: "pre-wrap" }}>
+              <strong>You were removed from this event:</strong> {event.attendee_removal_reason.trim()}
+            </p>
+          ) : null}
+          {isOrganizerOwner ? (
+            <Link to={`/events/${event.id}/edit`} className="btn btn-secondary btn-block" style={{ marginTop: "0.5rem" }}>
+              Edit event
+            </Link>
+          ) : null}
           {isOrganizerOwner || isAdmin ? (
             <button
               type="button"

@@ -4,7 +4,6 @@ import LoginPage from "./pages/LoginPage";
 import EventListPage from "./pages/EventListPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import DashboardPage from "./pages/DashboardPage";
-import AdminPanelPage from "./pages/AdminPanelPage";
 import AdminPastEventsPage from "./pages/AdminPastEventsPage";
 import CreateEventPage from "./pages/CreateEventPage";
 import AdminRoute from "./components/AdminRoute";
@@ -32,11 +31,11 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route element={<AdminRoute />}>
-              <Route path="/admin" element={<AdminPanelPage />} />
               <Route path="/admin/past-events" element={<AdminPastEventsPage />} />
             </Route>
             <Route element={<OrganizerRoute />}>
               <Route path="/create-event" element={<CreateEventPage />} />
+              <Route path="/events/:id/edit" element={<CreateEventPage />} />
             </Route>
           </Route>
         </Route>

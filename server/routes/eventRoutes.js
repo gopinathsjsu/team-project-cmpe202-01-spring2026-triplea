@@ -13,6 +13,8 @@ const {
   getMyEvents,
   getMyRegisteredEvents,
   getPendingEvents,
+  getPendingEventUpdates,
+  getMyRejectedEventUpdates,
   getAllEventsForAdmin,
   getEventAttendees,
   getEventById,
@@ -22,8 +24,11 @@ const {
   registerForEvent,
   getMyRsvpStatus,
   unregisterFromEvent,
+  removeAttendeeFromEvent,
   approveEvent,
+  approveEventUpdate,
   rejectEvent,
+  rejectEventUpdate,
 } = require("../controllers/eventController");
 
 router.get("/", authenticateTokenOptional, getAllEvents);
@@ -36,6 +41,8 @@ router.get(
 router.get("/my-events", authenticateToken, authorizeRoles("organizer"), getMyEvents);
 router.get("/my-registrations", authenticateToken, authorizeRoles("attendee"), getMyRegisteredEvents);
 router.get("/pending", authenticateToken, authorizeRoles("admin"), getPendingEvents);
+router.get("/updates/pending", authenticateToken, authorizeRoles("admin"), getPendingEventUpdates);
+router.get("/updates/my-rejected", authenticateToken, authorizeRoles("organizer"), getMyRejectedEventUpdates);
 router.get("/all", authenticateToken, authorizeRoles("admin"), getAllEventsForAdmin);
 router.get("/categories", authenticateTokenOptional, getEventCategories);
 router.get(
@@ -50,6 +57,15 @@ router.get("/:id", authenticateTokenOptional, validateEventIdParam, getEventById
 router.post("/", authenticateToken, authorizeRoles("organizer", "admin"), createEvent);
 router.post("/:id/rsvp", authenticateToken, authorizeRoles("attendee"), validateEventIdParam, registerForEvent);
 router.delete("/:id/rsvp", authenticateToken, authorizeRoles("attendee"), validateEventIdParam, unregisterFromEvent);
+router.delete(
+  "/:id/attendees/:attendeeId",
+  authenticateToken,
+  authorizeRoles("organizer", "admin"),
+  validateEventIdParam,
+  removeAttendeeFromEvent
+);
+router.put("/updates/:id/approve", authenticateToken, authorizeRoles("admin"), validateEventIdParam, approveEventUpdate);
+router.put("/updates/:id/reject", authenticateToken, authorizeRoles("admin"), validateEventIdParam, rejectEventUpdate);
 router.put("/:id/approve", authenticateToken, authorizeRoles("admin"), validateEventIdParam, approveEvent);
 router.put("/:id/reject", authenticateToken, authorizeRoles("admin"), validateEventIdParam, rejectEvent);
 router.put("/:id", authenticateToken, authorizeRoles("organizer", "admin"), validateEventIdParam, updateEvent);
