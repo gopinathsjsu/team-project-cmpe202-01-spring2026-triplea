@@ -1,3 +1,5 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 export async function getEvents(filters = {}) {
   const { keyword, category, dateFrom, dateTo, location, sortBy } = filters;
 
@@ -22,7 +24,7 @@ export async function getEvents(filters = {}) {
   }
 
   const qs = params.toString();
-  const url = `http://localhost:5000/api/events${qs ? `?${qs}` : ""}`;
+  const url = `${API_BASE_URL}/api/events${qs ? `?${qs}` : ""}`;
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers = {};
@@ -78,7 +80,7 @@ export async function getPastEventsForAdmin(filters = {}) {
   }
 
   const qs = params.toString();
-  const url = `http://localhost:5000/api/events/admin/past${qs ? `?${qs}` : ""}`;
+  const url = `${API_BASE_URL}/api/events/admin/past${qs ? `?${qs}` : ""}`;
 
   const response = await fetch(url, {
     headers: {
@@ -103,7 +105,7 @@ export async function getPastEventsForAdmin(filters = {}) {
 }
 
 export async function getEventCategories() {
-  const response = await fetch("http://localhost:5000/api/events/categories");
+  const response = await fetch('${API_BASE_URL}/api/events/categories');
 
   if (!response.ok) {
     let message = "Failed to fetch categories";
@@ -122,7 +124,7 @@ export async function getEventCategories() {
 }
 
 export async function createEvent(body, token) {
-  const response = await fetch("http://localhost:5000/api/events", {
+  const response = await fetch('${API_BASE_URL}/api/events', {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -139,7 +141,7 @@ export async function createEvent(body, token) {
 }
 
 export async function getMyEvents(token) {
-  const response = await fetch("http://localhost:5000/api/events/my-events", {
+  const response = await fetch('${API_BASE_URL}/api/events/my-events', {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -153,7 +155,7 @@ export async function getMyEvents(token) {
 }
 
 export async function getMyRegisteredEvents(token) {
-  const response = await fetch("http://localhost:5000/api/events/my-registrations", {
+  const response = await fetch('${API_BASE_URL}/api/events/my-registrations', {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -167,7 +169,7 @@ export async function getMyRegisteredEvents(token) {
 }
 
 export async function getPendingEvents(token) {
-  const response = await fetch("http://localhost:5000/api/events/pending", {
+  const response = await fetch('${API_BASE_URL}/api/events/pending', {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -181,7 +183,7 @@ export async function getPendingEvents(token) {
 }
 
 export async function getAllEventsForAdmin(token) {
-  const response = await fetch("http://localhost:5000/api/events/all", {
+  const response = await fetch('${API_BASE_URL}/api/events/all', {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -201,7 +203,7 @@ export async function getEventById(id, tokenMaybe) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`http://localhost:5000/api/events/${id}`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}`, { headers });
 
   if (!response.ok) {
     let message = "Failed to fetch event";
@@ -220,7 +222,7 @@ export async function getEventById(id, tokenMaybe) {
 }
 
 export async function getEventAttendees(id, token) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}/attendees`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}/attendees`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -234,7 +236,7 @@ export async function getEventAttendees(id, token) {
 }
 
 export async function getRsvpStatus(id, token) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}/rsvp-status`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}/rsvp-status`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -257,7 +259,7 @@ export async function getRsvpStatus(id, token) {
 }
 
 export async function unregisterFromEvent(id, token) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}/rsvp`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}/rsvp`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
@@ -282,7 +284,7 @@ export async function unregisterFromEvent(id, token) {
 }
 
 export async function registerForEvent(id, token) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}/rsvp`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}/rsvp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -307,7 +309,7 @@ export async function registerForEvent(id, token) {
 }
 
 export async function deleteEventById(id, token) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -322,7 +324,7 @@ export async function deleteEventById(id, token) {
 }
 
 export async function approveEventById(id, token) {
-  const response = await fetch(`http://localhost:5000/api/events/${id}/approve`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}/approve`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -339,7 +341,7 @@ export async function approveEventById(id, token) {
 export async function rejectEventById(id, token, payload) {
   const rejection_reason =
     typeof payload?.rejection_reason === "string" ? payload.rejection_reason : "";
-  const response = await fetch(`http://localhost:5000/api/events/${id}/reject`, {
+  const response = await fetch(`${API_BASE_URL}/api/events/${id}/reject`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
