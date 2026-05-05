@@ -211,6 +211,20 @@ export async function getPendingEventUpdates(token) {
   return data;
 }
 
+export async function getMyRejectedEventUpdates(token) {
+  const response = await fetch("http://localhost:5000/api/events/updates/my-rejected", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch rejected event updates");
+  }
+  return data;
+}
+
 export async function getAllEventsForAdmin(token) {
   const response = await fetch("http://localhost:5000/api/events/all", {
     headers: {

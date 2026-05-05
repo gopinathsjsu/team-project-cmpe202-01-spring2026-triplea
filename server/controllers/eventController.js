@@ -599,6 +599,43 @@ async function getPendingEventUpdates(req, res, next) {
   }
 }
 
+async function getMyRejectedEventUpdates(req, res, next) {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query(
+      `
+      SELECT
+        pur.id AS update_request_id,
+        pur.event_id,
+        pur.pending_data,
+        pur.rejection_reason,
+        pur.created_at,
+        pur.updated_at,
+        e.title AS current_title,
+        e.category AS current_category,
+        e.event_date AS current_event_date,
+        e.start_time AS current_start_time,
+        e.location_name AS current_location_name,
+        pur.pending_data->>'title' AS proposed_title,
+        pur.pending_data->>'category' AS proposed_category,
+        pur.pending_data->>'event_date' AS proposed_event_date,
+        pur.pending_data->>'start_time' AS proposed_start_time,
+        pur.pending_data->>'location_name' AS proposed_location_name
+      FROM event_update_requests pur
+      JOIN events e ON e.id = pur.event_id
+      WHERE e.organizer_id = $1
+        AND pur.status = 'rejected'
+      ORDER BY pur.updated_at DESC
+      `,
+      [userId]
+    );
+
+    return successResponse(res, result.rows, "Rejected event updates fetched successfully");
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function getAllEventsForAdmin(req, res, next) {
   try {
     const result = await pool.query(
@@ -1818,6 +1855,7 @@ module.exports = {
   getMyRegisteredEvents,
   getPendingEvents,
   getPendingEventUpdates,
+  getMyRejectedEventUpdates,
   getAllEventsForAdmin,
   getEventAttendees,
   getEventById,

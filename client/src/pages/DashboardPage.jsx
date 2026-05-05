@@ -6,6 +6,7 @@ import {
   deleteEventById,
   getAllEventsForAdmin,
   getMyEvents,
+  getMyRejectedEventUpdates,
   getMyRegisteredEvents,
   getPendingEvents,
   getPendingEventUpdates,
@@ -47,16 +48,19 @@ export default function DashboardPage() {
   const isAdmin = role === "admin";
 
   const [createdEvents, setCreatedEvents] = useState([]);
+  const [rejectedEventUpdates, setRejectedEventUpdates] = useState([]);
   const [registeredEvents, setRegisteredEvents] = useState([]);
   const [pendingEvents, setPendingEvents] = useState([]);
   const [pendingEventUpdates, setPendingEventUpdates] = useState([]);
   const [allAdminEvents, setAllAdminEvents] = useState([]);
   const [createdLoading, setCreatedLoading] = useState(isOrganizer);
+  const [rejectedUpdatesLoading, setRejectedUpdatesLoading] = useState(isOrganizer);
   const [registeredLoading, setRegisteredLoading] = useState(isAttendee);
   const [pendingLoading, setPendingLoading] = useState(isAdmin);
   const [pendingUpdatesLoading, setPendingUpdatesLoading] = useState(isAdmin);
   const [allAdminLoading, setAllAdminLoading] = useState(isAdmin);
   const [createdError, setCreatedError] = useState("");
+  const [rejectedUpdatesError, setRejectedUpdatesError] = useState("");
   const [registeredError, setRegisteredError] = useState("");
   const [pendingError, setPendingError] = useState("");
   const [pendingUpdatesError, setPendingUpdatesError] = useState("");
@@ -94,6 +98,41 @@ export default function DashboardPage() {
       } finally {
         if (!cancelled) {
           setCreatedLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOrganizer]);
+
+  useEffect(() => {
+    if (!isOrganizer) {
+      setRejectedUpdatesLoading(false);
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setRejectedUpdatesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setRejectedUpdatesLoading(true);
+      setRejectedUpdatesError("");
+      try {
+        const res = await getMyRejectedEventUpdates(token);
+        if (!cancelled) {
+          setRejectedEventUpdates(Array.isArray(res?.data) ? res.data : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setRejectedUpdatesError(e?.message || "Could not load rejected event updates.");
+          setRejectedEventUpdates([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setRejectedUpdatesLoading(false);
         }
       }
     })();
@@ -297,6 +336,34 @@ export default function DashboardPage() {
     );
   };
 
+  const renderRejectedUpdateRows = (list) => {
+    if (list.length === 0) {
+      return <p className="text-muted" role="status">No disapproved event updates.</p>;
+    }
+    return (
+      <div style={{ display: "grid", gap: "0.5rem" }}>
+        {list.map((req) => (
+          <Link key={req.update_request_id} to={`/events/${req.event_id}`} className="dash-event-link">
+            <strong>{req.proposed_title || req.current_title || "Untitled event"}</strong>
+            <p className="text-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.8125rem" }}>
+              Current event: {req.current_title || "Untitled event"}
+            </p>
+            <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
+              Proposed date: {formatDisplayDate(req.proposed_event_date || req.current_event_date)}
+              {req.proposed_start_time ? ` · ${req.proposed_start_time}` : ""}
+              {req.proposed_location_name ? ` · ${req.proposed_location_name}` : ""}
+            </p>
+            {req.rejection_reason?.trim() ? (
+              <p className="text-error" role="status" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
+                <strong>Admin note:</strong> {req.rejection_reason.trim()}
+              </p>
+            ) : null}
+          </Link>
+        ))}
+      </div>
+    );
+  };
+
   if (isOrganizer) {
     const { upcoming, past } = createdSplit;
     return (
@@ -322,6 +389,11 @@ export default function DashboardPage() {
           <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
             <a href="#my-disapproved" style={{ color: "inherit" }}>
               Disapproved events
+            </a>
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: "14px", color: "#444" }}>
+            <a href="#my-disapproved-updates" style={{ color: "inherit" }}>
+              Disapproved updates
             </a>
           </p>
         </aside>
@@ -379,6 +451,16 @@ export default function DashboardPage() {
             </h3>
             <p className="page-lede">Events an admin marked as rejected. They are hidden from the public list.</p>
             {!createdLoading ? renderEventRows(organizerDisapprovedEvents, { showRejectedReason: true }) : null}
+          </section>
+
+          <section id="my-disapproved-updates" className="card card-pad dash-section">
+            <h3 className="page-title" style={{ fontSize: "1.1rem", marginBottom: "0.35rem" }}>
+              Disapproved event updates
+            </h3>
+            <p className="page-lede">Edits to approved events that an admin rejected. The live event still uses the approved details.</p>
+            {rejectedUpdatesLoading ? <p className="text-muted" role="status" aria-live="polite">Loading disapproved updates…</p> : null}
+            {rejectedUpdatesError ? <p className="text-error" role="alert">{rejectedUpdatesError}</p> : null}
+            {!rejectedUpdatesLoading && !rejectedUpdatesError ? renderRejectedUpdateRows(rejectedEventUpdates) : null}
           </section>
         </section>
       </main>

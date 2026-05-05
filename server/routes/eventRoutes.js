@@ -14,6 +14,7 @@ const {
   getMyRegisteredEvents,
   getPendingEvents,
   getPendingEventUpdates,
+  getMyRejectedEventUpdates,
   getAllEventsForAdmin,
   getEventAttendees,
   getEventById,
@@ -41,6 +42,7 @@ router.get("/my-events", authenticateToken, authorizeRoles("organizer"), getMyEv
 router.get("/my-registrations", authenticateToken, authorizeRoles("attendee"), getMyRegisteredEvents);
 router.get("/pending", authenticateToken, authorizeRoles("admin"), getPendingEvents);
 router.get("/updates/pending", authenticateToken, authorizeRoles("admin"), getPendingEventUpdates);
+router.get("/updates/my-rejected", authenticateToken, authorizeRoles("organizer"), getMyRejectedEventUpdates);
 router.get("/all", authenticateToken, authorizeRoles("admin"), getAllEventsForAdmin);
 router.get("/categories", authenticateTokenOptional, getEventCategories);
 router.get(
