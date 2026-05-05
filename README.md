@@ -26,11 +26,50 @@ EventHub SJSU is a full-stack Eventbrite-like platform for discovering, creating
 - Notifications: Nodemailer, node-cron.
 - Deployment: AWS EC2, Nginx, Auto Scaling Group, Application Load Balancer.
 
+## Design Documentation
+
+The team created UI wireframes, a UML component diagram, and a UML deployment diagram to document the planned user experience and overall system architecture.
+
+### UI Wireframes
+
+The wireframes cover the main screens in EventHub SJSU:
+
+- Login and registration.
+- Event listing with filters, search, and event cards.
+- Event detail with RSVP, attendee count, schedule, organizer, and related event information.
+- Multi-step create event flow.
+- User dashboard for events, attendees, tickets, and saved events.
+- Admin panel for event approvals, users, reports, categories, and settings.
+
+![EventHub SJSU UI Wireframes](docs/diagrams/ui-wireframes.png)
+
+### UML Component Diagram
+
+The component diagram shows the React frontend communicating with the Express API server over HTTPS/JSON. The backend validates JWT tokens, reads and updates the Supabase PostgreSQL database, and connects to notification, calendar, and map integration services.
+
+![EventHub SJSU UML Component Diagram](docs/diagrams/component-diagram.png)
+
+### UML Deployment Diagram
+
+The deployment diagram shows the production architecture with a Vite-built React app hosted on AWS Amplify, requests routed through an AWS Application Load Balancer to EC2 instances running the Node.js/Express API server, and persistent data stored in Supabase PostgreSQL. External services support notifications, calendar syncing, and location mapping.
+
+![EventHub SJSU UML Deployment Diagram](docs/diagrams/deployment-diagram.png)
+
+### Key Design Decisions
+
+- Used a React/Vite single-page frontend with React Router to support clear page-level navigation for attendees, organizers, and admins.
+- Used an Express REST API with JWT middleware so protected routes can enforce role-based access for attendees, organizers, and admins.
+- Moved from early in-memory backend storage to PostgreSQL/Supabase for persistent users, events, registrations, notifications, and event update requests.
+- Added approval and update-review workflows so admins control public event visibility while organizers can still manage their own events.
+- Integrated email notifications, scheduled reminders, Google Calendar links, and Google Maps support to make the event workflow more complete.
+- Prepared AWS deployment with EC2, Nginx, AMI, Auto Scaling Group, and Application Load Balancer to support a production-style deployment model.
+
 ## Repository Structure
 
 ```text
 project-root/
   client/                 React + Vite frontend
+  docs/diagrams/          UI wireframes, component diagram, and deployment diagram
   server/                 Express backend
   DB_DESIGN.md            Final database design documentation
   PROJECT_JOURNAL.md      Scrum meeting and sprint journal
