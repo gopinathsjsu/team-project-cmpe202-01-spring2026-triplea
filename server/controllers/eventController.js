@@ -2,7 +2,6 @@ const pool = require("../config/db");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const {
   isNonEmptyTrimmedString,
-  isNumericNonNegative,
   normalizeCategoryLabel,
 } = require("../utils/validation");
 const {
@@ -52,6 +51,26 @@ const EVENT_LIST_SORT_SQL = {
 
 function canManageEvents(user) {
   return user && (user.role === "organizer" || user.role === "admin");
+}
+
+/** True when the client explicitly asks for a paid / non-free event (reject with 400). */
+function bodyRequestsPaidEvent(body) {
+  if (!body || typeof body !== "object") {
+    return false;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "is_free")) {
+    const v = body.is_free;
+    if (v === false || v === "false" || v === 0 || v === "0") {
+      return true;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "ticket_price")) {
+    const p = Number(body.ticket_price);
+    if (Number.isFinite(p) && p > 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function getEventCategories(req, res, next) {
@@ -645,6 +664,10 @@ async function createEvent(req, res, next) {
       return errorResponse(res, 403, "Only organizers or admins can create events");
     }
 
+    if (bodyRequestsPaidEvent(req.body)) {
+      return errorResponse(res, 400, "Only free events are supported");
+    }
+
     const {
       title,
       event_description,
@@ -660,8 +683,6 @@ async function createEvent(req, res, next) {
       latitude,
       longitude,
       capacity,
-      is_free = true,
-      ticket_price = 0,
       schedule_notes,
       calendar_link,
     } = req.body;
@@ -690,10 +711,6 @@ async function createEvent(req, res, next) {
       return errorResponse(res, 400, "category is required");
     }
 
-    if (!isNumericNonNegative(ticket_price)) {
-      return errorResponse(res, 400, "ticket_price must be numeric and >= 0");
-    }
-
     if (!isValidEventDate(event_date)) {
       return errorResponse(res, 400, "Invalid event_date format");
     }
@@ -712,10 +729,6 @@ async function createEvent(req, res, next) {
 
     if (!isValidCapacity(capacity)) {
       return errorResponse(res, 400, "capacity must be a number greater than 0");
-    }
-
-    if (Boolean(is_free) && Number(ticket_price) !== 0) {
-      return errorResponse(res, 400, "Free events must have ticket_price = 0");
     }
 
     const result = await pool.query(
@@ -764,8 +777,8 @@ async function createEvent(req, res, next) {
         latitude ?? null,
         longitude ?? null,
         Number(capacity),
-        Boolean(is_free),
-        Number(ticket_price),
+        true,
+        0,
         schedule_notes || null,
         calendar_link || null,
       ]
@@ -788,6 +801,10 @@ async function updateEvent(req, res, next) {
     }
 
     const body = req.body;
+    if (bodyRequestsPaidEvent(body)) {
+      return errorResponse(res, 400, "Only free events are supported");
+    }
+
     const { id } = req.params;
     const {
       title,
@@ -804,8 +821,6 @@ async function updateEvent(req, res, next) {
       latitude,
       longitude,
       capacity,
-      is_free,
-      ticket_price,
       schedule_notes,
       calendar_link,
     } = body;
@@ -819,12 +834,6 @@ async function updateEvent(req, res, next) {
     if (Object.prototype.hasOwnProperty.call(body, "event_description")) {
       if (!isNonEmptyTrimmedString(event_description)) {
         return errorResponse(res, 400, "event_description must be a non-empty trimmed string");
-      }
-    }
-
-    if (Object.prototype.hasOwnProperty.call(body, "ticket_price")) {
-      if (!isNumericNonNegative(ticket_price)) {
-        return errorResponse(res, 400, "ticket_price must be numeric and >= 0");
       }
     }
 
@@ -868,17 +877,9 @@ async function updateEvent(req, res, next) {
         : ""
       : event.end_time;
 
-    const updatedIsFree = typeof is_free === "boolean" ? is_free : event.is_free;
-    const updatedTicketPrice = Object.prototype.hasOwnProperty.call(body, "ticket_price")
-      ? Number(ticket_price)
-      : Number(event.ticket_price);
     const updatedCapacity = Object.prototype.hasOwnProperty.call(body, "capacity")
       ? Number(capacity)
       : Number(event.capacity);
-
-    if (updatedIsFree && updatedTicketPrice !== 0) {
-      return errorResponse(res, 400, "Free events must have ticket_price = 0");
-    }
 
     const result = await pool.query(
       `
@@ -925,8 +926,8 @@ async function updateEvent(req, res, next) {
         latitude ?? event.latitude,
         longitude ?? event.longitude,
         updatedCapacity,
-        updatedIsFree,
-        updatedTicketPrice,
+        true,
+        0,
         schedule_notes ?? event.schedule_notes,
         calendar_link ?? event.calendar_link,
         id,

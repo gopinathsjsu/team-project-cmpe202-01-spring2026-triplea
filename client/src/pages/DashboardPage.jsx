@@ -224,7 +224,7 @@ export default function DashboardPage() {
   );
 
   const renderEventRows = (list, options = {}) => {
-    const { showRejectedReason = false } = options;
+    const { showRejectedReason = false, showApprovalStatus = true } = options;
     if (list.length === 0) {
       return <p className="text-muted">No events.</p>;
     }
@@ -238,9 +238,11 @@ export default function DashboardPage() {
               {ev.start_time ? ` · ${ev.start_time}` : ""}
               {ev.location_name ? ` · ${ev.location_name}` : ""}
             </p>
-            <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
-              Approval: {ev.approval_status ?? "—"}
-            </p>
+            {showApprovalStatus ? (
+              <p className="text-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem" }}>
+                Approval: {ev.approval_status ?? "—"}
+              </p>
+            ) : null}
             {showRejectedReason && ev.approval_status === "rejected" && ev.rejection_reason?.trim() ? (
               <p className="text-error" style={{ margin: "0.5rem 0 0", fontSize: "0.8125rem", whiteSpace: "pre-wrap" }}>
                 <strong>Admin note:</strong> {ev.rejection_reason.trim()}
@@ -384,7 +386,7 @@ export default function DashboardPage() {
               Upcoming events
             </h3>
             <p className="page-lede">Registered events dated today or later.</p>
-            {!registeredLoading ? renderEventRows(upcoming) : null}
+            {!registeredLoading ? renderEventRows(upcoming, { showApprovalStatus: false }) : null}
           </section>
 
           <section id="reg-past" className="card card-pad dash-section">
@@ -392,7 +394,7 @@ export default function DashboardPage() {
               Past events
             </h3>
             <p className="page-lede">Registered events dated before today.</p>
-            {!registeredLoading ? renderEventRows(past) : null}
+            {!registeredLoading ? renderEventRows(past, { showApprovalStatus: false }) : null}
           </section>
         </section>
       </main>

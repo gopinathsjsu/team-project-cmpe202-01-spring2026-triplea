@@ -111,6 +111,7 @@ export default function EventDetailPage() {
 
   const decoded = decodeJwtPayload(localStorage.getItem("token"));
   const isAdmin = decoded?.role === "admin";
+  const isAttendee = decoded?.role === "attendee";
   const isOrganizerOwner =
     decoded?.role === "organizer" &&
     Number(decoded?.userId) === Number(event?.organizer_id);
@@ -157,7 +158,12 @@ export default function EventDetailPage() {
   }, [event?.id, canSeeAttendees]);
 
   useEffect(() => {
-    if (event?.approval_status !== "pending") {
+    setRejectFormOpen(false);
+    setRejectDraft("");
+  }, [event?.id]);
+
+  useEffect(() => {
+    if (event?.approval_status === "rejected") {
       setRejectFormOpen(false);
       setRejectDraft("");
     }
@@ -193,13 +199,10 @@ export default function EventDetailPage() {
     );
   }
 
-  const formatPrice = () => {
-    if (event.is_free) {
-      return "Free";
-    }
-    const price = event.ticket_price != null ? String(event.ticket_price) : "—";
-    return `$${price}`;
-  };
+  const adminCanDisapprove =
+    isAdmin && (event.approval_status === "pending" || event.approval_status === "approved");
+
+  const formatPrice = () => "Free";
 
   const locationLines = [
     event.location_name,
@@ -363,7 +366,7 @@ export default function EventDetailPage() {
           <p style={{ margin: "0 0 0.35rem" }}>
             <strong>Price</strong> {formatPrice()}
           </p>
-          {isAdmin || !isOrganizerOwner ? (
+          {!isAttendee && (isAdmin || !isOrganizerOwner) ? (
             <p style={{ margin: "0 0 0.75rem" }}>
               <strong>Status</strong> {event.approval_status ?? "—"}
             </p>
@@ -388,7 +391,7 @@ export default function EventDetailPage() {
                     ? "Working…"
                     : "Approve"}
               </button>
-              {event.approval_status === "pending" && !rejectFormOpen ? (
+              {adminCanDisapprove && !rejectFormOpen ? (
                 <button
                   type="button"
                   className="btn btn-secondary btn-block"
@@ -401,7 +404,7 @@ export default function EventDetailPage() {
                   Disapprove
                 </button>
               ) : null}
-              {event.approval_status === "pending" && rejectFormOpen ? (
+              {adminCanDisapprove && rejectFormOpen ? (
                 <div className="detail-actions">
                   <label className="label" style={{ fontSize: "0.8125rem" }}>
                     Comment for organizer (required)

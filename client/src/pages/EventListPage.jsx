@@ -150,18 +150,6 @@ export default function EventListPage() {
             onChange={(e) => setLocation(e.target.value)}
           />
 
-          <p className="filter-label" style={{ marginTop: "0.75rem" }}>
-            Price
-          </p>
-          <label className="filter-check">
-            <input type="checkbox" />
-            Free
-          </label>
-          <label className="filter-check">
-            <input type="checkbox" />
-            All events
-          </label>
-
           <button type="button" className="btn btn-secondary btn-block" style={{ marginTop: "0.75rem" }} onClick={clearFilters}>
             Clear filters
           </button>

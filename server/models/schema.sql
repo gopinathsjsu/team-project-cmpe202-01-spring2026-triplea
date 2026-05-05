@@ -39,11 +39,7 @@ CREATE TABLE events (
     calendar_link TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CHECK (
-        (is_free = true AND ticket_price = 0.00)
-        OR
-        (is_free = false AND ticket_price >= 0.00)
-    ),
+    CHECK (is_free = true AND ticket_price = 0.00),
     CHECK (end_time IS NULL OR end_time > start_time)
 );
 
