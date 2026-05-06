@@ -3,6 +3,7 @@
 # EventHub SJSU
 
 EventHub SJSU is a full-stack event app where users can find, create, manage, and register for events. We built it for CMPE 202 using Scrum across multiple sprints.
+https://www.eventhubsjsu.xyz/
 
 ## Team Information
 
